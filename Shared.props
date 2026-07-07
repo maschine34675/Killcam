@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <SPTPath>$(MSBuildThisFileDirectory)..\..</SPTPath>
+    <AssemblySearchPaths>
+      $(SPTPath)\EscapeFromTarkov_Data\Managed;
+      $(SPTPath)\BepInEx\plugins\spt;
+      $(AssemblySearchPaths)
+    </AssemblySearchPaths>
+  </PropertyGroup>
+
+  <Import Project="Shared.props.user" Condition="Exists('Shared.props.user')" />
+
+  <Target Name="SPTClientDeploy" AfterTargets="PostBuildEvent" Condition="'$(SPTModType)'=='Client'">
+    <Exec
+      Command='
+        xcopy /F /Y "$(TargetPath)" "$(SPTPath)\BepInEx\plugins\"
+
+        if $(ConfigurationName) == Debug (
+          xcopy /F /Y "$(ProjectDir)$(OutDir)$(TargetName).pdb" "$(SPTPath)\BepInEx\plugins\"
+        )'
+    />
+  </Target>
+</Project>
