@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Comfort.Common;
 using EFT;
-using EFT.CameraControl;
 using KillcamReplay.Recording;
 using UnityEngine;
 
@@ -76,6 +75,12 @@ public class ReplayController : MonoBehaviour
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Playback end after {_clock:F2}s: {reason}");
     }
 
+    public void StopPlayback(string reason)
+    {
+        if (_playing)
+            EndPlayback(reason);
+    }
+
     private void LateUpdate()
     {
         if (!_playing) return;
@@ -133,20 +138,17 @@ public class ReplayController : MonoBehaviour
         tr.rotation = Quaternion.Euler(pitch, yaw, 0f);
     }
 
+    // No PlayerCameraController is destroyed or created: destroying it detaches the
+    // EffectsController from the player (its death handler then NullRefs and aborts
+    // the raid-end flow → soft-lock), and creating one is unnecessary because the
+    // onBeforeRender stomp already wins the rendered frame against the corpse cam.
     public IEnumerator RunDeathReplay(Player deadPlayer, Snapshot[] path, List<float> shots, string killerName)
     {
         yield return new WaitForSeconds(LeadIn);
 
-        TrySafe(() => PlayerCameraController.Destroy(deadPlayer), "destroy dead player camera");
-        yield return null;
-
         Play(path, shots, killerName);
         while (_playing)
             yield return null;
-        yield return null;
-
-        if (deadPlayer != null && deadPlayer.gameObject != null)
-            TrySafe(() => PlayerCameraController.Create(deadPlayer), "restore dead player camera");
 
         PendingReplayKiller = null;
     }
@@ -195,16 +197,11 @@ public class ReplayController : MonoBehaviour
 
     private IEnumerator RunDebugReplay(Player main, Snapshot[] path, List<float> shots, string name)
     {
-        TrySafe(() => PlayerCameraController.Destroy(main), "destroy main player camera");
-        yield return null;
-
         Play(path, shots, name);
         while (_playing)
             yield return null;
-        yield return null;
-
-        if (main != null && main.gameObject != null)
-            TrySafe(() => PlayerCameraController.Create(main), "restore main player camera");
+        // Nothing to restore — the player's camera controller was never touched and
+        // reclaims the view as soon as the stomp stops.
     }
 
     private void OnGUI()
@@ -238,15 +235,4 @@ public class ReplayController : MonoBehaviour
         }
     }
 
-    private static void TrySafe(System.Action action, string what)
-    {
-        try
-        {
-            action();
-        }
-        catch (System.Exception ex)
-        {
-            Plugin.Instance.Logger.LogError($"[KillcamReplay] Step '{what}' failed: {ex}");
-        }
-    }
 }

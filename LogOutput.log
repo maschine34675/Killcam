@@ -1,0 +1,102 @@
+[Info   :Killcam Replay] [KillcamReplay] Death replay: killer=SovietWalrus, 99 snapshots, window [191.37 .. 196.33], death at 196.35
+[Info   :Killcam Replay] [KillcamReplay] Deferring LocalGame.Stop by 6.5s
+[Info   :Killcam Replay] [KillcamReplay] Playback start: 99 snapshots, span 4.96s, camera=ok
+[Info   :Killcam Replay] [KillcamReplay] Playback end after 4.96s: path exhausted
+[Debug  :SmajlecLights] PrismEffect Awake called for Cam2_obshaga_zalupa4_DistantShadows_OFF(Clone)
+[Debug  :SmajlecLights] Camera matched
+[Info   :Killcam Replay] [KillcamReplay] Re-invoking deferred LocalGame.Stop
+[Info   :Killcam Replay] [KillcamReplay] Playback start: 95 snapshots, span 4.93s, camera=ok
+[Info   :Killcam Replay] [KillcamReplay] Playback end after 4.93s: path exhausted
+[Debug  :SmajlecLights] PrismEffect Awake called for Cam2_obshaga_zalupa4_DistantShadows_OFF(Clone)
+[Debug  :SmajlecLights] Camera matched
+[Warning:ModulePatch] Updated spt bot Sneaky_Weasel: pmcBEAR to use: pmcBEAR brain
+[Warning:ModulePatch] Updated spt bot Bulld0z3r: pmcBEAR to use: pmcBEAR brain
+[Warning:ModulePatch] Updated spt bot NastyInc: pmcBEAR to use: pmcBEAR brain
+[Info   :ModulePatch] Updated assault bot Яша Трэш to use: assault brain
+[Info   :ModulePatch] Updated assault bot Дрон Кафтан to use: assault brain
+[Info   :Killcam Replay] [KillcamReplay] Playback start: 100 snapshots, span 4.96s, camera=ok
+[Info   :Killcam Replay] [KillcamReplay] Playback end after 4.96s: path exhausted
+[Debug  :SmajlecLights] PrismEffect Awake called for Cam2_obshaga_zalupa4_DistantShadows_OFF(Clone)
+[Debug  :SmajlecLights] Camera matched
+[Info   :Killcam Replay] [KillcamReplay] Playback start: 98 snapshots, span 4.94s, camera=ok
+[Error  : Unity Log] KeyNotFoundException: The given key '0' was not present in the dictionary.
+Stack trace:
+System.Collections.Generic.Dictionary`2[TKey,TValue].get_Item (TKey key) (at <8ce0bd04a7a04b4b9395538239d3fdd8>:0)
+CullingManager.method_2 (GInterface55 cullableObject, System.Int32 index) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+CullingManager.Register (GInterface55 cullableObject) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+CullingObject.Register () (at <ad47400a25db462cbf0a531df654c3c3>:0)
+CullingObject.Start () (at <ad47400a25db462cbf0a531df654c3c3>:0)
+UnityEngine.DebugLogHandler:LogException(Exception, Object)
+Class412:LogException(Exception, Object)
+UnityEngine.Debug:CallOverridenDebugHandler(Exception, Object)
+
+[Error  : Unity Log] KeyNotFoundException: The given key '0' was not present in the dictionary.
+Stack trace:
+System.Collections.Generic.Dictionary`2[TKey,TValue].get_Item (TKey key) (at <8ce0bd04a7a04b4b9395538239d3fdd8>:0)
+CullingManager.method_2 (GInterface55 cullableObject, System.Int32 index) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+CullingManager.Register (GInterface55 cullableObject) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+CullingObject.Register () (at <ad47400a25db462cbf0a531df654c3c3>:0)
+CullingObject.Start () (at <ad47400a25db462cbf0a531df654c3c3>:0)
+UnityEngine.DebugLogHandler:LogException(Exception, Object)
+Class412:LogException(Exception, Object)
+UnityEngine.Debug:CallOverridenDebugHandler(Exception, Object)
+
+[Warning:ModulePatch] Updated spt bot gamesensical: pmcUSEC to use: pmcUSEC brain
+[Warning:ModulePatch] Updated spt bot AcidPhantasm: pmcUSEC to use: pmcUSEC brain
+[Info   :Killcam Replay] [KillcamReplay] Playback end after 4.94s: path exhausted
+[Debug  :SmajlecLights] PrismEffect Awake called for Cam2_obshaga_zalupa4_DistantShadows_OFF(Clone)
+[Debug  :SmajlecLights] Camera matched
+[Error  : Unity Log] NullReferenceException
+Stack trace:
+EffectsController+Class637.Toggle (System.Boolean value) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EffectsController+Class633.AddEffect (IEffect effect) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EffectsController.method_11 (IEffect effect) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController+GClass3008.Propagate () (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController+GClass3008.method_0 () (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController+GClass3008.method_0 () (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController+GClass3008.Create[TEffect] (EFT.HealthSystem.ActiveHealthController health, EBodyPart bodyPart, System.Nullable`1[T] delayTime, System.Nullable`1[T] workTime, System.Nullable`1[T] residueTime, System.Nullable`1[T] strength, System.Nullable`1[T] updateTime, System.Action`1[T] initCallback) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController.AddEffect[TEffect] (EBodyPart bodyPart, System.Nullable`1[T] delayTime, System.Nullable`1[T] workTime, System.Nullable`1[T] residueTime, System.Nullable`1[T] strength, System.Action`1[T] initCallback) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController.method_27 (EBodyPart bodyPart, System.Single delayTime, System.Single workTime, System.Single residueTime, System.Nullable`1[T] strength) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController.ApplyDamage (EBodyPart bodyPart, System.Single damage, DamageInfoStruct damageInfo) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.Player.ApplyDamageInfo (DamageInfoStruct damageInfo, EBodyPart bodyPartType, EBodyPartColliderType colliderType, System.Single absorbed) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.Player.ApplyShot (DamageInfoStruct damageInfo, EBodyPart bodyPartType, EBodyPartColliderType colliderType, EArmorPlateCollider armorPlateCollider, ShotIdStruct shotId) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+BodyPartCollider+PlayerBridge.ApplyShot (DamageInfoStruct damageInfo, EBodyPart bodyPart, EBodyPartColliderType bodyPartCollider, EArmorPlateCollider armorPlateCollider, ShotIdStruct shotId) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+BodyPartCollider.ApplyHit (DamageInfoStruct damageInfo, ShotIdStruct shotID) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.ClientGameWorld.ShotDelegate (EftBulletClass shotResult) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.Ballistics.BallisticsCalculator.method_2 (System.Single simulationTime) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+UnityEngine.DebugLogHandler:LogException(Exception, Object)
+Class412:LogException(Exception, Object)
+UnityEngine.Debug:LogException(Exception)
+EFT.Ballistics.BallisticsCalculator:method_2(Single)
+EFT.Ballistics.BallisticsCalculator:ManualUpdate(Single)
+EFT.GameWorld:BallisticsTick(Single)
+EFT.GameWorld:DoWorldTick(Single)
+EFT.GameWorldUnityTickListener:Update()
+
+[Info   :Killcam Replay] [KillcamReplay] Death replay: killer=Bulld0z3r, 97 snapshots, window [425.64 .. 430.56], death at 430.60
+[Error  : Unity Log] NullReferenceException
+Stack trace:
+EffectsController.method_9 (EFT.EDamageType damageType) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController.Kill (EFT.EDamageType damageType) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController.method_24 (EBodyPart bodyPart, EFT.EDamageType damageType) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController.DestroyBodyPart (EBodyPart bodyPart, EFT.EDamageType damageType) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.HealthSystem.ActiveHealthController.ApplyDamage (EBodyPart bodyPart, System.Single damage, DamageInfoStruct damageInfo) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.Player.ApplyDamageInfo (DamageInfoStruct damageInfo, EBodyPart bodyPartType, EBodyPartColliderType colliderType, System.Single absorbed) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.Player.ApplyShot (DamageInfoStruct damageInfo, EBodyPart bodyPartType, EBodyPartColliderType colliderType, EArmorPlateCollider armorPlateCollider, ShotIdStruct shotId) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+BodyPartCollider+PlayerBridge.ApplyShot (DamageInfoStruct damageInfo, EBodyPart bodyPart, EBodyPartColliderType bodyPartCollider, EArmorPlateCollider armorPlateCollider, ShotIdStruct shotId) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+BodyPartCollider.ApplyHit (DamageInfoStruct damageInfo, ShotIdStruct shotID) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.ClientGameWorld.ShotDelegate (EftBulletClass shotResult) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+EFT.Ballistics.BallisticsCalculator.method_2 (System.Single simulationTime) (at <ad47400a25db462cbf0a531df654c3c3>:0)
+UnityEngine.DebugLogHandler:LogException(Exception, Object)
+Class412:LogException(Exception, Object)
+UnityEngine.Debug:LogException(Exception)
+EFT.Ballistics.BallisticsCalculator:method_2(Single)
+EFT.Ballistics.BallisticsCalculator:ManualUpdate(Single)
+EFT.GameWorld:BallisticsTick(Single)
+EFT.GameWorld:DoWorldTick(Single)
+EFT.GameWorldUnityTickListener:Update()
+
+[Info   :Killcam Replay] [KillcamReplay] Playback start: 97 snapshots, span 4.92s, camera=ok
+[Info   :Killcam Replay] [KillcamReplay] Playback end after 4.92s: path exhausted
+[Debug  :SmajlecLights] PrismEffect Awake called for Cam2_obshaga_zalupa4_DistantShadows_OFF(Clone)
+[Debug  :SmajlecLights] Camera matched

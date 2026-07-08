@@ -15,10 +15,15 @@ mit Zeitstempel markiert.
 **Replay (beim Tod):**
 `Player.OnDead` liefert den Killer (`LastAggressor`). Aus dessen Ringpuffer wird das Fenster
 der letzten N Sekunden (Standard 5 s) extrahiert. `LocalGame.Stop()` wird deferred (gleiches
-Muster wie die KillAndDamageInfo-Killcam), der `PlayerCameraController` des toten Spielers
-entfernt und die Hauptkamera in `LateUpdate` entlang des aufgezeichneten Pfads interpoliert
-(Position: Lerp, Yaw/Pitch: LerpAngle). Danach wird die Kamera zurückgegeben und Stop()
-nachgeholt.
+Muster wie die KillAndDamageInfo-Killcam) und die Hauptkamera entlang des aufgezeichneten
+Pfads interpoliert (Position: Lerp, Yaw/Pitch: LerpAngle). Die Pose wird in
+`Application.onBeforeRender` gesetzt — nach allen `LateUpdate`s, sodass der weiterlaufende
+`PlayerCameraController` (Corpse-Cam) das gerenderte Bild nicht überschreiben kann. Es wird
+bewusst **kein** Controller zerstört oder erzeugt: `PlayerCameraController.Destroy` hängt den
+`EffectsController` vom Spieler ab, dessen Death-Handler dann NullRefs wirft und die
+Raid-Ende-Sequenz abbricht (Soft-Lock). Der Todes-Fade (`EffectsController.method_9`,
+DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst läge er schwarz
+über dem Replay.
 
 ## Performance-Budget
 
@@ -51,6 +56,8 @@ nachgeholt.
   („● SCHUSS") angezeigt.
 - **Pitch-Vorzeichen ungetestet** — falls die Kamera vertikal falsch kippt: `Replay.InvertPitch`
   aktivieren.
+- **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
+  KillAndDamageInfo-Killcam).
 - **Koexistenz mit KillAndDamageInfo:** Dessen Live-Killcam besitzt ebenfalls die Todessequenz
   (deferred Stop + Kamera-Übernahme). Ist die Mod geladen, deaktiviert sich das Death-Replay
   automatisch (Log-Warnung); das F9-Debug-Replay funktioniert weiterhin. Zum Testen des

@@ -16,6 +16,7 @@ public static class ReplayPatches
         new ShotRecordPatch().Enable();
         new DeathReplayPatch().Enable();
         new DeferStopPatch().Enable();
+        new SuppressDeathFadePatch().Enable();
         new FixPerfectCullingSamplerPatch().Enable();
     }
 
@@ -94,6 +95,8 @@ public static class ReplayPatches
                 Plugin.Instance.Logger.LogInfo(
                     $"[KillcamReplay] Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}");
 
+                Plugin.ReplayCtrl.StopPlayback("superseded by death replay");
+
                 ReplayController.PendingReplayKiller = killer;
                 Plugin.Instance.StartCoroutine(
                     Plugin.ReplayCtrl.RunDeathReplay(__instance, path, shots, killer.Profile?.Nickname ?? "?"));
@@ -136,6 +139,30 @@ public static class ReplayPatches
             _isReentry = true;
             game.Stop(profileId, exitStatus, exitName, delay);
             _isReentry = false;
+        }
+    }
+
+    // EffectsController.method_9 starts the death fade (DeathFade + FastBlur.Die)
+    // when the local player is killed, which blacks out the screen while the replay
+    // plays underneath it. It runs after our OnDead postfix has set
+    // PendingReplayKiller, so gating on that flag skips the fade exactly when a
+    // death replay owns the screen. The deferred raid-end flow brings its own
+    // black-screen transition later.
+    public class SuppressDeathFadePatch : ModulePatch
+    {
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(EffectsController), "method_9");
+        }
+
+        [PatchPrefix]
+        public static bool Prefix()
+        {
+            if (ReplayController.PendingReplayKiller == null)
+                return true;
+
+            Plugin.Instance.Logger.LogInfo("[KillcamReplay] Suppressing death fade during replay");
+            return false;
         }
     }
 
