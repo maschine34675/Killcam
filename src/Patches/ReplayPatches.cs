@@ -87,10 +87,12 @@ public static class ReplayPatches
                 var path = track.ExtractWindow(now - Plugin.ReplayDuration.Value, now);
                 if (path.Length < 2)
                 {
-                    Plugin.Instance.Logger.LogWarning("[KillcamReplay] Killer track too short — skipping replay");
+                    Plugin.Instance.Logger.LogWarning($"[KillcamReplay] Killer track too short ({path.Length} snapshots) — skipping replay");
                     return;
                 }
                 var shots = track.ExtractShots(now - Plugin.ReplayDuration.Value, now);
+                Plugin.Instance.Logger.LogInfo(
+                    $"[KillcamReplay] Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}");
 
                 ReplayController.PendingReplayKiller = killer;
                 Plugin.Instance.StartCoroutine(
@@ -122,6 +124,7 @@ public static class ReplayPatches
             if (_isReentry || exitStatus != ExitStatus.Killed || ReplayController.PendingReplayKiller == null)
                 return true;
 
+            Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Deferring LocalGame.Stop by {ReplayController.GetExtraDelay():F1}s");
             Plugin.Instance.StartCoroutine(DeferredStop(__instance, profileId, exitStatus, exitName, delay));
             return false;
         }
@@ -129,6 +132,7 @@ public static class ReplayPatches
         private static IEnumerator DeferredStop(LocalGame game, string profileId, ExitStatus exitStatus, string exitName, float delay)
         {
             yield return new WaitForSeconds(ReplayController.GetExtraDelay());
+            Plugin.Instance.Logger.LogInfo("[KillcamReplay] Re-invoking deferred LocalGame.Stop");
             _isReentry = true;
             game.Stop(profileId, exitStatus, exitName, delay);
             _isReentry = false;

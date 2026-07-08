@@ -44,8 +44,6 @@ public class ReplayController : MonoBehaviour
             TryStartDebugReplay();
     }
 
-    // Caller must have removed any PlayerCameraController that would fight over
-    // the camera transform before starting playback.
     private void Play(Snapshot[] path, List<float> shots, string killerName)
     {
         _path = path;
@@ -56,6 +54,26 @@ public class ReplayController : MonoBehaviour
         _pathStartTime = path[0].Time;
         _camera = CameraClass.Instance?.Camera;
         _playing = _camera != null && path.Length >= 2;
+
+        float span = path[path.Length - 1].Time - path[0].Time;
+        Plugin.Instance.Logger.LogInfo(
+            $"[KillcamReplay] Playback start: {path.Length} snapshots, span {span:F2}s, camera={(_camera != null ? "ok" : "NULL")}");
+
+        if (_playing)
+        {
+            // Apply the pose again right before rendering so nothing that runs in
+            // LateUpdate after us (e.g. a PlayerCameraController snapping the camera
+            // back to its player via ForceSetPosition) can override the visible frame.
+            Application.onBeforeRender -= ApplyCurrentPose;
+            Application.onBeforeRender += ApplyCurrentPose;
+        }
+    }
+
+    private void EndPlayback(string reason)
+    {
+        _playing = false;
+        Application.onBeforeRender -= ApplyCurrentPose;
+        Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Playback end after {_clock:F2}s: {reason}");
     }
 
     private void LateUpdate()
@@ -64,7 +82,7 @@ public class ReplayController : MonoBehaviour
 
         if (_camera == null)
         {
-            _playing = false;
+            EndPlayback("camera destroyed");
             return;
         }
 
@@ -74,16 +92,29 @@ public class ReplayController : MonoBehaviour
         if (t >= _path[_path.Length - 1].Time)
         {
             ApplyInterpolated(_path.Length - 1, _path.Length - 1, 0f);
-            _playing = false;
+            EndPlayback("path exhausted");
             return;
         }
 
         while (_cursor < _path.Length - 2 && _path[_cursor + 1].Time <= t)
             _cursor++;
 
+        ApplyCurrentPose();
+    }
+
+    private void ApplyCurrentPose()
+    {
+        if (!_playing || _camera == null) return;
+
+        float t = _pathStartTime + _clock;
         float span = _path[_cursor + 1].Time - _path[_cursor].Time;
         float alpha = span > 0.0001f ? Mathf.Clamp01((t - _path[_cursor].Time) / span) : 0f;
         ApplyInterpolated(_cursor, _cursor + 1, alpha);
+    }
+
+    private void OnDestroy()
+    {
+        Application.onBeforeRender -= ApplyCurrentPose;
     }
 
     private void ApplyInterpolated(int ia, int ib, float alpha)
