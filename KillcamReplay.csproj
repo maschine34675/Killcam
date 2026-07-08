@@ -20,6 +20,7 @@
     <Reference Include="UnityEngine" />
     <Reference Include="UnityEngine.CoreModule" />
     <Reference Include="UnityEngine.IMGUIModule" />
+    <Reference Include="UnityEngine.PhysicsModule" />
     <Reference Include="UnityEngine.TextRenderingModule" />
     <Reference Include="UnityEngine.InputLegacyModule" />
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />

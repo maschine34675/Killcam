@@ -7,9 +7,16 @@ using UnityEngine;
 
 namespace KillcamReplay.Replay;
 
-// Plays a recorded camera path on the main camera. While a death replay owns the
-// raid-end sequence, PendingReplayKiller is non-null and LocalGame.Stop() is deferred
+// Plays a recorded camera path on the main camera and moves a translucent ghost
+// along the victim's recorded path. While a death replay owns the raid-end
+// sequence, PendingReplayKiller is non-null and LocalGame.Stop() is deferred
 // (see ReplayPatches.DeferStopPatch).
+//
+// No PlayerCameraController is destroyed or created: destroying it detaches the
+// EffectsController from the player (its death handler then NullRefs and aborts
+// the raid-end flow → soft-lock). Instead the pose is re-applied in
+// Application.onBeforeRender, which runs after every LateUpdate and therefore
+// wins the rendered frame against the live/corpse camera controller.
 public class ReplayController : MonoBehaviour
 {
     public const float LeadIn = 0.8f;
@@ -17,11 +24,12 @@ public class ReplayController : MonoBehaviour
 
     public static Player PendingReplayKiller;
 
-    private Snapshot[] _path;
+    private PathCursor _cameraPath;
+    private PathCursor _victimPath;
+    private ReplayGhost _ghost;
     private List<float> _shots;
-    private int _cursor;
     private float _clock;
-    private float _pathStartTime;
+    private float _startTime;
     private bool _playing;
     private string _killerName;
     private Camera _camera;
@@ -43,26 +51,27 @@ public class ReplayController : MonoBehaviour
             TryStartDebugReplay();
     }
 
-    private void Play(Snapshot[] path, List<float> shots, string killerName)
+    private void Play(Snapshot[] killerPath, Snapshot[] victimPath, List<float> shots, string killerName)
     {
-        _path = path;
+        _cameraPath = new PathCursor(killerPath);
+        _victimPath = victimPath != null && victimPath.Length >= 2 && Plugin.ShowVictimGhost.Value
+            ? new PathCursor(victimPath)
+            : null;
         _shots = shots;
         _killerName = killerName;
-        _cursor = 0;
         _clock = 0f;
-        _pathStartTime = path[0].Time;
+        _startTime = _cameraPath.StartTime;
         _camera = CameraClass.Instance?.Camera;
-        _playing = _camera != null && path.Length >= 2;
+        _playing = _camera != null && killerPath.Length >= 2;
 
-        float span = path[path.Length - 1].Time - path[0].Time;
         Plugin.Instance.Logger.LogInfo(
-            $"[KillcamReplay] Playback start: {path.Length} snapshots, span {span:F2}s, camera={(_camera != null ? "ok" : "NULL")}");
+            $"[KillcamReplay] Playback start: {killerPath.Length} snapshots, span {_cameraPath.EndTime - _cameraPath.StartTime:F2}s, ghost={(_victimPath != null ? "on" : "off")}, camera={(_camera != null ? "ok" : "NULL")}");
 
         if (_playing)
         {
-            // Apply the pose again right before rendering so nothing that runs in
-            // LateUpdate after us (e.g. a PlayerCameraController snapping the camera
-            // back to its player via ForceSetPosition) can override the visible frame.
+            if (_victimPath != null)
+                _ghost = new ReplayGhost();
+
             Application.onBeforeRender -= ApplyCurrentPose;
             Application.onBeforeRender += ApplyCurrentPose;
         }
@@ -72,6 +81,8 @@ public class ReplayController : MonoBehaviour
     {
         _playing = false;
         Application.onBeforeRender -= ApplyCurrentPose;
+        _ghost?.Destroy();
+        _ghost = null;
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Playback end after {_clock:F2}s: {reason}");
     }
 
@@ -92,17 +103,13 @@ public class ReplayController : MonoBehaviour
         }
 
         _clock += Time.deltaTime;
-        float t = _pathStartTime + _clock;
 
-        if (t >= _path[_path.Length - 1].Time)
+        if (_startTime + _clock >= _cameraPath.EndTime)
         {
-            ApplyInterpolated(_path.Length - 1, _path.Length - 1, 0f);
+            ApplyCurrentPose();
             EndPlayback("path exhausted");
             return;
         }
-
-        while (_cursor < _path.Length - 2 && _path[_cursor + 1].Time <= t)
-            _cursor++;
 
         ApplyCurrentPose();
     }
@@ -111,42 +118,34 @@ public class ReplayController : MonoBehaviour
     {
         if (!_playing || _camera == null) return;
 
-        float t = _pathStartTime + _clock;
-        float span = _path[_cursor + 1].Time - _path[_cursor].Time;
-        float alpha = span > 0.0001f ? Mathf.Clamp01((t - _path[_cursor].Time) / span) : 0f;
-        ApplyInterpolated(_cursor, _cursor + 1, alpha);
+        float t = Mathf.Min(_startTime + _clock, _cameraPath.EndTime);
+
+        var camSnap = _cameraPath.Sample(t);
+        float pitch = Plugin.InvertPitch.Value ? -camSnap.Pitch : camSnap.Pitch;
+        var tr = _camera.transform;
+        tr.position = camSnap.CamPos;
+        tr.rotation = Quaternion.Euler(pitch, camSnap.Yaw, 0f);
+
+        if (_ghost != null && _victimPath != null)
+        {
+            var victimSnap = _victimPath.Sample(t);
+            if (Plugin.InvertPitch.Value)
+                victimSnap.Pitch = -victimSnap.Pitch;
+            _ghost.UpdatePose(victimSnap);
+        }
     }
 
     private void OnDestroy()
     {
         Application.onBeforeRender -= ApplyCurrentPose;
+        _ghost?.Destroy();
     }
 
-    private void ApplyInterpolated(int ia, int ib, float alpha)
-    {
-        ref var a = ref _path[ia];
-        ref var b = ref _path[ib];
-
-        Vector3 pos = Vector3.Lerp(a.CamPos, b.CamPos, alpha);
-        float yaw = Mathf.LerpAngle(a.Yaw, b.Yaw, alpha);
-        float pitch = Mathf.LerpAngle(a.Pitch, b.Pitch, alpha);
-        if (Plugin.InvertPitch.Value)
-            pitch = -pitch;
-
-        var tr = _camera.transform;
-        tr.position = pos;
-        tr.rotation = Quaternion.Euler(pitch, yaw, 0f);
-    }
-
-    // No PlayerCameraController is destroyed or created: destroying it detaches the
-    // EffectsController from the player (its death handler then NullRefs and aborts
-    // the raid-end flow → soft-lock), and creating one is unnecessary because the
-    // onBeforeRender stomp already wins the rendered frame against the corpse cam.
-    public IEnumerator RunDeathReplay(Player deadPlayer, Snapshot[] path, List<float> shots, string killerName)
+    public IEnumerator RunDeathReplay(Snapshot[] killerPath, Snapshot[] victimPath, List<float> shots, string killerName)
     {
         yield return new WaitForSeconds(LeadIn);
 
-        Play(path, shots, killerName);
+        Play(killerPath, victimPath, shots, killerName);
         while (_playing)
             yield return null;
 
@@ -184,20 +183,27 @@ public class ReplayController : MonoBehaviour
         }
 
         float now = Time.time;
-        var path = track.ExtractWindow(now - Plugin.ReplayDuration.Value, now);
+        float from = now - Plugin.ReplayDuration.Value;
+        var path = track.ExtractWindow(from, now);
         if (path.Length < 2)
         {
             Plugin.Instance.Logger.LogWarning("[KillcamReplay] Debug replay: not enough snapshots");
             return;
         }
-        var shots = track.ExtractShots(now - Plugin.ReplayDuration.Value, now);
+        var shots = track.ExtractShots(from, now);
 
-        StartCoroutine(RunDebugReplay(main, path, shots, nearest.Profile?.Nickname ?? "Bot"));
+        // The main player's own recent path doubles as the ghost — walk up to a bot,
+        // press F9 and watch yourself through its eyes.
+        Snapshot[] victimPath = null;
+        if (Plugin.Recorder.TryGetTrack(main, out var mainTrack))
+            victimPath = mainTrack.ExtractWindow(from, now);
+
+        StartCoroutine(RunDebugReplay(path, victimPath, shots, nearest.Profile?.Nickname ?? "Bot"));
     }
 
-    private IEnumerator RunDebugReplay(Player main, Snapshot[] path, List<float> shots, string name)
+    private IEnumerator RunDebugReplay(Snapshot[] path, Snapshot[] victimPath, List<float> shots, string name)
     {
-        Play(path, shots, name);
+        Play(path, victimPath, shots, name);
         while (_playing)
             yield return null;
         // Nothing to restore — the player's camera controller was never touched and
@@ -224,7 +230,7 @@ public class ReplayController : MonoBehaviour
 
         GUI.Label(new Rect(0, 20, Screen.width, 34), $"KILLCAM — {_killerName}", _labelStyle);
 
-        float t = _pathStartTime + _clock;
+        float t = _startTime + _clock;
         for (int i = 0; i < _shots.Count; i++)
         {
             if (Mathf.Abs(_shots[i] - t) < 0.15f)
@@ -234,5 +240,4 @@ public class ReplayController : MonoBehaviour
             }
         }
     }
-
 }

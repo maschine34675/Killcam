@@ -11,6 +11,8 @@ public struct Snapshot
     public Vector3 CamPos;
     public float Yaw;
     public float Pitch;
+    public float PoseLevel; // 0 = crouched, 1 = standing
+    public bool Prone;
 }
 
 // Fixed-size ring buffer per player. Preallocated once on first sighting;
@@ -143,12 +145,15 @@ public class SnapshotRecorder : MonoBehaviour
             }
 
             Vector2 rotation = player.Rotation;
+            var movementContext = player.MovementContext;
             track.Add(new Snapshot
             {
                 Time = now,
                 CamPos = camPos.position,
                 Yaw = rotation.x,
-                Pitch = rotation.y
+                Pitch = rotation.y,
+                PoseLevel = movementContext != null ? movementContext.PoseLevel : 1f,
+                Prone = movementContext != null && movementContext.IsInPronePose
             });
         }
     }

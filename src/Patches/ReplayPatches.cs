@@ -85,13 +85,20 @@ public static class ReplayPatches
                 }
 
                 float now = Time.time;
-                var path = track.ExtractWindow(now - Plugin.ReplayDuration.Value, now);
+                float from = now - Plugin.ReplayDuration.Value;
+                var path = track.ExtractWindow(from, now);
                 if (path.Length < 2)
                 {
                     Plugin.Instance.Logger.LogWarning($"[KillcamReplay] Killer track too short ({path.Length} snapshots) — skipping replay");
                     return;
                 }
-                var shots = track.ExtractShots(now - Plugin.ReplayDuration.Value, now);
+                var shots = track.ExtractShots(from, now);
+
+                // Own recorded path → ghost silhouette of the victim in the replay.
+                KillcamReplay.Recording.Snapshot[] victimPath = null;
+                if (Plugin.Recorder.TryGetTrack(__instance, out var victimTrack))
+                    victimPath = victimTrack.ExtractWindow(from, now);
+
                 Plugin.Instance.Logger.LogInfo(
                     $"[KillcamReplay] Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}");
 
@@ -99,7 +106,7 @@ public static class ReplayPatches
 
                 ReplayController.PendingReplayKiller = killer;
                 Plugin.Instance.StartCoroutine(
-                    Plugin.ReplayCtrl.RunDeathReplay(__instance, path, shots, killer.Profile?.Nickname ?? "?"));
+                    Plugin.ReplayCtrl.RunDeathReplay(path, victimPath, shots, killer.Profile?.Nickname ?? "?"));
             }
             catch (System.Exception ex)
             {

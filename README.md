@@ -8,9 +8,9 @@ Blickrichtung und Position der letzten Sekunden vor dem Kill.
 
 **Aufzeichnung (während des Raids):**
 Ein `SnapshotRecorder` sampelt mit fester Rate (Standard 20 Hz) für jeden lebenden Spieler/Bot
-Kameraposition (`Player.CameraPosition`) und Blickrichtung (`Player.Rotation`, Yaw/Pitch) in
-einen Ringpuffer (Standard 15 s). Schüsse werden über einen Postfix auf `Player.OnMakingShot`
-mit Zeitstempel markiert.
+Kameraposition (`Player.CameraPosition`), Blickrichtung (`Player.Rotation`, Yaw/Pitch) und
+Körperhaltung (`PoseLevel`, `IsInPronePose`) in einen Ringpuffer (Standard 15 s). Schüsse
+werden über einen Postfix auf `Player.OnMakingShot` mit Zeitstempel markiert.
 
 **Replay (beim Tod):**
 `Player.OnDead` liefert den Killer (`LastAggressor`). Aus dessen Ringpuffer wird das Fenster
@@ -25,6 +25,13 @@ Raid-Ende-Sequenz abbricht (Soft-Lock). Der Todes-Fade (`EffectsController.metho
 DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst läge er schwarz
 über dem Replay.
 
+**Victim-Ghost (Phase 2):**
+Während des Replays läuft eine halbtransparente Silhouette (`ReplayGhost`: Kapsel-Körper mit
+haltungsabhängiger Höhe, Kopf-Kugel auf Augenhöhe, Blickrichtungs-Balken) den aufgezeichneten
+Pfad des Opfers ab — man sieht sich selbst durch die Augen des Killers. Aus collider-losen
+Primitives gebaut, berührt keine Spielsysteme. Beim F9-Debug-Replay ist der Ghost der eigene
+Pfad: vor einen Bot stellen, F9 drücken, sich selbst zusehen.
+
 ## Performance-Budget
 
 - **Idle-Kosten pro Frame:** 2 float-Vergleiche (Sample nicht fällig → early-out).
@@ -33,7 +40,7 @@ DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst l
 - **Keine GC-Allokationen im Hot Path:** Ringpuffer sind vorallokiert (Structs), das
   Track-Dictionary wächst nur, wenn ein neuer Spieler spawnt. Extraktion des Replay-Fensters
   allokiert nur einmal beim Tod.
-- **Speicher:** 24 Bytes/Snapshot × 20 Hz × 15 s ≈ 7,2 KB pro Spieler; bei 40 Spielern ≈ 290 KB.
+- **Speicher:** 32 Bytes/Snapshot × 20 Hz × 15 s ≈ 9,6 KB pro Spieler; bei 40 Spielern ≈ 385 KB.
 
 ## Konfiguration (BepInEx F12 / Config-Datei)
 
@@ -43,15 +50,16 @@ DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst l
 | Recording.BufferSeconds | 15 s | Ringpuffer-Länge |
 | Replay.Duration | 5 s | Replay-Länge |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
+| Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
 | Replay.InvertPitch | false | Vertikale Blickrichtung invertieren (falls Kamera falsch kippt) |
 | Debug.ReplayKey | F9 | Replay des nächstgelegenen Bots sofort abspielen (Test ohne Sterben) |
 
 ## Bekannte Einschränkungen (Prototyp)
 
-- **Nur der Kamera-Pfad wird abgespielt** — die Welt läuft live weiter. Bots (inkl. des Killers
-  selbst) stehen/laufen an ihrer aktuellen Position, nicht an der aufgezeichneten. Der eigene
-  Körper liegt bereits an der Todesstelle. Ein vollwertiges Replay (Bots/Opfer entlang der
-  aufgezeichneten Pfade als Ghosts bewegen) wäre Phase 2.
+- **Die Welt läuft live weiter** — Bots (inkl. des Killers selbst) stehen/laufen an ihrer
+  aktuellen Position, nicht an der aufgezeichneten. Nur das Opfer wird als Ghost auf dem
+  aufgezeichneten Pfad dargestellt; der eigene Körper liegt zusätzlich an der Todesstelle.
+  Weitere Akteure als Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
 - **Kein Waffenmodell/Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker
   („● SCHUSS") angezeigt.
 - **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der

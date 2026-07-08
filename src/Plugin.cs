@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace KillcamReplay;
 
-[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.1.0")]
+[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.2.0")]
 public class Plugin : BaseUnityPlugin
 {
     public static Plugin Instance;
@@ -19,6 +19,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<float> BufferSeconds;
     public static ConfigEntry<float> ReplayDuration;
     public static ConfigEntry<bool> DeathReplay;
+    public static ConfigEntry<bool> ShowVictimGhost;
     public static ConfigEntry<bool> InvertPitch;
     public static ConfigEntry<KeyboardShortcut> DebugReplayKey;
 
@@ -44,6 +45,8 @@ public class Plugin : BaseUnityPlugin
             new ConfigDescription("Replay-Länge in Sekunden", new AcceptableValueRange<float>(2f, 12f)));
         DeathReplay = Config.Bind("Replay", "DeathReplay", true,
             "Replay beim eigenen Tod abspielen");
+        ShowVictimGhost = Config.Bind("Replay", "ShowVictimGhost", true,
+            "Eigene Silhouette (Ghost) im Replay anzeigen");
         InvertPitch = Config.Bind("Replay", "InvertPitch", false,
             "Vertikale Blickrichtung im Replay invertieren (falls die Kamera falsch herum kippt)");
         DebugReplayKey = Config.Bind("Debug", "ReplayKey", new KeyboardShortcut(KeyCode.F9),
