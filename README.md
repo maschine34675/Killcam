@@ -54,8 +54,6 @@ DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst l
   aufgezeichneten Pfade als Ghosts bewegen) wäre Phase 2.
 - **Kein Waffenmodell/Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker
   („● SCHUSS") angezeigt.
-- **Pitch-Vorzeichen ungetestet** — falls die Kamera vertikal falsch kippt: `Replay.InvertPitch`
-  aktivieren.
 - **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
   KillAndDamageInfo-Killcam).
 - **Koexistenz mit KillAndDamageInfo:** Dessen Live-Killcam besitzt ebenfalls die Todessequenz

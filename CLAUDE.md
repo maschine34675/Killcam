@@ -26,9 +26,18 @@ Dieselben Harmony-Pitfalls wie in `C:\SPT\Development\KillAndDamageInfo\CLAUDE.m
 
 - **Deferred Stop**: `LocalGame.Stop()` per Prefix (return false) aufschieben, Re-Invoke
   mit `_isReentry`-Flag nach dem Replay. Sonst schwarzer Screen + State-Zerstörung.
-- **PlayerCameraController Destroy/Create**: `yield return null` dazwischen, sonst
-  GException8 (PerfectCulling-Sampler). Der Sampler-Fix-Patch ist idempotent zu dem in
-  KillAndDamageInfo.
+- **NIE `PlayerCameraController.Destroy` aufrufen**: Das Destroy-Event setzt
+  `EffectsController.player_0 = null`; wird der Spieler danach getroffen/gekillt, wirft
+  `ActiveHealthController.Kill` → `EffectsController.method_9` eine NullRef und die
+  Raid-Ende-Sequenz bricht ab (Soft-Lock, Stop wird nie gerufen). Stattdessen: Kamera-Pose
+  in `Application.onBeforeRender` stompen — läuft nach allen `LateUpdate`s und gewinnt das
+  gerenderte Bild gegen den weiterlaufenden Controller (inkl. dessen `ForceSetPosition`).
+- **Todes-Fade unterdrücken**: `EffectsController.method_9` (DeathFade + FastBlur) feuert
+  beim Kill NACH unserem `OnDead`-Postfix und legt sonst Schwarz über das Replay. Prefix
+  return false solange `PendingReplayKiller != null` (empirisch via Log verifiziert).
+- **Pitch-Mapping bestätigt**: `Quaternion.Euler(rotation.y, rotation.x, 0)` aus
+  `Player.Rotation` (x=Yaw, y=Pitch) stimmt mit der tatsächlichen Blickrichtung überein —
+  in-game getestet, kein Invert nötig.
 - **Koexistenz**: Death-Replay deaktiviert sich automatisch, wenn
   `com.local.killanddamageinfo` geladen ist (dessen Live-Killcam besitzt die Todessequenz).
 - Postfixes in Gameplay-Pfaden (OnDead, OnMakingShot) immer in try/catch.
