@@ -27,6 +27,7 @@ public class ReplayController : MonoBehaviour
     private PathCursor _cameraPath;
     private PathCursor _victimPath;
     private ReplayGhost _ghost;
+    private readonly LivePlayerHider _hider = new();
     private List<float> _shots;
     private float _clock;
     private float _startTime;
@@ -72,6 +73,9 @@ public class ReplayController : MonoBehaviour
             if (_victimPath != null)
                 _ghost = new ReplayGhost();
 
+            if (Plugin.HideLiveBots.Value)
+                _hider.HideAll();
+
             Application.onBeforeRender -= ApplyCurrentPose;
             Application.onBeforeRender += ApplyCurrentPose;
         }
@@ -83,6 +87,7 @@ public class ReplayController : MonoBehaviour
         Application.onBeforeRender -= ApplyCurrentPose;
         _ghost?.Destroy();
         _ghost = null;
+        _hider.RestoreAll();
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Playback end after {_clock:F2}s: {reason}");
     }
 
@@ -139,6 +144,7 @@ public class ReplayController : MonoBehaviour
     {
         Application.onBeforeRender -= ApplyCurrentPose;
         _ghost?.Destroy();
+        _hider.RestoreAll();
     }
 
     public IEnumerator RunDeathReplay(Snapshot[] killerPath, Snapshot[] victimPath, List<float> shots, string killerName)

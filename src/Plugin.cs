@@ -20,6 +20,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<float> ReplayDuration;
     public static ConfigEntry<bool> DeathReplay;
     public static ConfigEntry<bool> ShowVictimGhost;
+    public static ConfigEntry<bool> HideLiveBots;
     public static ConfigEntry<bool> InvertPitch;
     public static ConfigEntry<KeyboardShortcut> DebugReplayKey;
 
@@ -47,6 +48,8 @@ public class Plugin : BaseUnityPlugin
             "Replay beim eigenen Tod abspielen");
         ShowVictimGhost = Config.Bind("Replay", "ShowVictimGhost", true,
             "Eigene Silhouette (Ghost) im Replay anzeigen");
+        HideLiveBots = Config.Bind("Replay", "HideLiveBots", true,
+            "Lebende Bots während des Replays ausblenden (sie laufen sonst durchs Bild)");
         InvertPitch = Config.Bind("Replay", "InvertPitch", false,
             "Vertikale Blickrichtung im Replay invertieren (falls die Kamera falsch herum kippt)");
         DebugReplayKey = Config.Bind("Debug", "ReplayKey", new KeyboardShortcut(KeyCode.F9),

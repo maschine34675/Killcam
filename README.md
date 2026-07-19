@@ -51,15 +51,17 @@ Pfad: vor einen Bot stellen, F9 drücken, sich selbst zusehen.
 | Replay.Duration | 5 s | Replay-Länge |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
 | Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
+| Replay.HideLiveBots | true | Lebende Bots während des Replays ausblenden |
 | Replay.InvertPitch | false | Vertikale Blickrichtung invertieren (falls Kamera falsch kippt) |
 | Debug.ReplayKey | F9 | Replay des nächstgelegenen Bots sofort abspielen (Test ohne Sterben) |
 
 ## Bekannte Einschränkungen (Prototyp)
 
-- **Die Welt läuft live weiter** — Bots (inkl. des Killers selbst) stehen/laufen an ihrer
-  aktuellen Position, nicht an der aufgezeichneten. Nur das Opfer wird als Ghost auf dem
-  aufgezeichneten Pfad dargestellt; der eigene Körper liegt zusätzlich an der Todesstelle.
-  Weitere Akteure als Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
+- **Die Welt läuft live weiter** — lebende Bots (inkl. des Killers) werden während des Replays
+  aber ausgeblendet (`LivePlayerHider`: nur `Renderer.enabled`, KI/Logik laufen weiter; danach
+  Wiederherstellung). Nur das Opfer wird als Ghost auf dem aufgezeichneten Pfad dargestellt;
+  der eigene Körper liegt zusätzlich an der Todesstelle. Weitere Akteure als Ghosts (z.B. der
+  Killer bei Drittperspektive) wären ein späterer Ausbau.
 - **Kein Waffenmodell/Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker
   („● SCHUSS") angezeigt.
 - **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
