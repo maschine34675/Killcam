@@ -94,10 +94,11 @@ public static class ReplayPatches
                 }
                 var shots = track.ExtractShots(from, now);
 
-                // Own recorded path → ghost silhouette of the victim in the replay.
+                // Own recorded path → victim ghost in the replay; bone window → real-model puppet.
                 KillcamReplay.Recording.Snapshot[] victimPath = null;
                 if (Plugin.Recorder.TryGetTrack(__instance, out var victimTrack))
                     victimPath = victimTrack.ExtractWindow(from, now);
+                var boneWindow = Plugin.Recorder.Bones.ExtractWindow(from, now);
 
                 Plugin.Instance.Logger.LogInfo(
                     $"[KillcamReplay] Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}");
@@ -106,7 +107,7 @@ public static class ReplayPatches
 
                 ReplayController.PendingReplayKiller = killer;
                 Plugin.Instance.StartCoroutine(
-                    Plugin.ReplayCtrl.RunDeathReplay(path, victimPath, shots, killer.Profile?.Nickname ?? "?"));
+                    Plugin.ReplayCtrl.RunDeathReplay(__instance, path, victimPath, boneWindow, shots, killer.Profile?.Nickname ?? "?"));
             }
             catch (System.Exception ex)
             {

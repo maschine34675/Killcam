@@ -24,9 +24,13 @@ public class ReplayController : MonoBehaviour
 
     public static Player PendingReplayKiller;
 
+    private static readonly System.Reflection.FieldInfo _corpseField =
+        HarmonyLib.AccessTools.Field(typeof(Player), "Corpse");
+
     private PathCursor _cameraPath;
     private PathCursor _victimPath;
     private ReplayGhost _ghost;
+    private GhostPuppet _puppet;
     private readonly LivePlayerHider _hider = new();
     private List<float> _shots;
     private float _clock;
@@ -52,7 +56,8 @@ public class ReplayController : MonoBehaviour
             TryStartDebugReplay();
     }
 
-    private void Play(Snapshot[] killerPath, Snapshot[] victimPath, List<float> shots, string killerName)
+    private void Play(Snapshot[] killerPath, Snapshot[] victimPath, BoneWindow boneWindow,
+        GameObject puppetSource, List<float> shots, string killerName)
     {
         _cameraPath = new PathCursor(killerPath);
         _victimPath = victimPath != null && victimPath.Length >= 2 && Plugin.ShowVictimGhost.Value
@@ -66,12 +71,18 @@ public class ReplayController : MonoBehaviour
         _playing = _camera != null && killerPath.Length >= 2;
 
         Plugin.Instance.Logger.LogInfo(
-            $"[KillcamReplay] Playback start: {killerPath.Length} snapshots, span {_cameraPath.EndTime - _cameraPath.StartTime:F2}s, ghost={(_victimPath != null ? "on" : "off")}, camera={(_camera != null ? "ok" : "NULL")}");
+            $"[KillcamReplay] Playback start: {killerPath.Length} snapshots, span {_cameraPath.EndTime - _cameraPath.StartTime:F2}s, bones={(boneWindow != null ? boneWindow.Times.Length.ToString() : "none")}, camera={(_camera != null ? "ok" : "NULL")}");
 
         if (_playing)
         {
-            if (_victimPath != null)
-                _ghost = new ReplayGhost();
+            if (Plugin.ShowVictimGhost.Value)
+            {
+                if (Plugin.UseRealModelGhost.Value && boneWindow != null && puppetSource != null)
+                    _puppet = GhostPuppet.TryCreate(puppetSource, boneWindow);
+
+                if (_puppet == null && _victimPath != null)
+                    _ghost = new ReplayGhost();
+            }
 
             if (Plugin.HideLiveBots.Value)
                 _hider.HideAll();
@@ -87,6 +98,8 @@ public class ReplayController : MonoBehaviour
         Application.onBeforeRender -= ApplyCurrentPose;
         _ghost?.Destroy();
         _ghost = null;
+        _puppet?.Destroy();
+        _puppet = null;
         _hider.RestoreAll();
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Playback end after {_clock:F2}s: {reason}");
     }
@@ -131,7 +144,11 @@ public class ReplayController : MonoBehaviour
         tr.position = camSnap.CamPos;
         tr.rotation = Quaternion.Euler(pitch, camSnap.Yaw, 0f);
 
-        if (_ghost != null && _victimPath != null)
+        if (_puppet != null)
+        {
+            _puppet.Apply(t);
+        }
+        else if (_ghost != null && _victimPath != null)
         {
             var victimSnap = _victimPath.Sample(t);
             if (Plugin.InvertPitch.Value)
@@ -144,14 +161,26 @@ public class ReplayController : MonoBehaviour
     {
         Application.onBeforeRender -= ApplyCurrentPose;
         _ghost?.Destroy();
+        _puppet?.Destroy();
         _hider.RestoreAll();
     }
 
-    public IEnumerator RunDeathReplay(Snapshot[] killerPath, Snapshot[] victimPath, List<float> shots, string killerName)
+    public IEnumerator RunDeathReplay(Player deadPlayer, Snapshot[] killerPath, Snapshot[] victimPath,
+        BoneWindow boneWindow, List<float> shots, string killerName)
     {
         yield return new WaitForSeconds(LeadIn);
 
-        Play(killerPath, victimPath, shots, killerName);
+        // The corpse IS the original dressed body (converted in place), so it is the
+        // ideal puppet source. By now (LeadIn later) it exists. Player.Corpse is a
+        // protected field — read via reflection.
+        GameObject puppetSource = null;
+        if (deadPlayer != null && deadPlayer.gameObject != null)
+        {
+            var corpse = _corpseField?.GetValue(deadPlayer) as Component;
+            puppetSource = corpse != null ? corpse.gameObject : deadPlayer.gameObject;
+        }
+
+        Play(killerPath, victimPath, boneWindow, puppetSource, shots, killerName);
         while (_playing)
             yield return null;
 
@@ -199,17 +228,20 @@ public class ReplayController : MonoBehaviour
         var shots = track.ExtractShots(from, now);
 
         // The main player's own recent path doubles as the ghost — walk up to a bot,
-        // press F9 and watch yourself through its eyes.
+        // press F9 and watch yourself through its eyes. The live body is the puppet
+        // source here (no corpse exists); its own head stays hidden (FPS mode).
         Snapshot[] victimPath = null;
         if (Plugin.Recorder.TryGetTrack(main, out var mainTrack))
             victimPath = mainTrack.ExtractWindow(from, now);
+        var boneWindow = Plugin.Recorder.Bones.ExtractWindow(from, now);
 
-        StartCoroutine(RunDebugReplay(path, victimPath, shots, nearest.Profile?.Nickname ?? "Bot"));
+        StartCoroutine(RunDebugReplay(main.gameObject, path, victimPath, boneWindow, shots, nearest.Profile?.Nickname ?? "Bot"));
     }
 
-    private IEnumerator RunDebugReplay(Snapshot[] path, Snapshot[] victimPath, List<float> shots, string name)
+    private IEnumerator RunDebugReplay(GameObject puppetSource, Snapshot[] path, Snapshot[] victimPath,
+        BoneWindow boneWindow, List<float> shots, string name)
     {
-        Play(path, victimPath, shots, name);
+        Play(path, victimPath, boneWindow, puppetSource, shots, name);
         while (_playing)
             yield return null;
         // Nothing to restore — the player's camera controller was never touched and

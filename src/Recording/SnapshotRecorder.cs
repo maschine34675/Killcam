@@ -88,6 +88,9 @@ public class SnapshotRecorder : MonoBehaviour
     private int _capacity;
     private bool _armed;
 
+    // full skeleton poses, local player only (for the real-model replay puppet)
+    public readonly BoneRecorder Bones = new();
+
     public void ResetForNewRaid()
     {
         _tracks.Clear();
@@ -95,6 +98,7 @@ public class SnapshotRecorder : MonoBehaviour
         _capacity = Mathf.CeilToInt(Plugin.BufferSeconds.Value * Plugin.SampleRate.Value) + 2;
         _nextSampleTime = 0f;
         _armed = true;
+        Bones.Reset(_capacity);
     }
 
     public void StopRecording()
@@ -127,6 +131,15 @@ public class SnapshotRecorder : MonoBehaviour
         {
             _armed = false;
             return;
+        }
+
+        try
+        {
+            Bones.TrySample(gameWorld.MainPlayer, now);
+        }
+        catch (System.Exception ex)
+        {
+            Plugin.Instance.Logger.LogError($"[KillcamReplay] BoneRecorder sample failed: {ex}");
         }
 
         var players = gameWorld.AllAlivePlayersList;

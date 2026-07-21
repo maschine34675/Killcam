@@ -25,12 +25,24 @@ Raid-Ende-Sequenz abbricht (Soft-Lock). Der Todes-Fade (`EffectsController.metho
 DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst läge er schwarz
 über dem Replay.
 
-**Victim-Ghost (Phase 2):**
-Während des Replays läuft eine halbtransparente Silhouette (`ReplayGhost`: Kapsel-Körper mit
-haltungsabhängiger Höhe, Kopf-Kugel auf Augenhöhe, Blickrichtungs-Balken) den aufgezeichneten
-Pfad des Opfers ab — man sieht sich selbst durch die Augen des Killers. Aus collider-losen
-Primitives gebaut, berührt keine Spielsysteme. Beim F9-Debug-Replay ist der Ghost der eigene
-Pfad: vor einen Bot stellen, F9 drücken, sich selbst zusehen.
+**Victim-Ghost (Phase 2/3):**
+Während des Replays sieht man sich selbst durch die Augen des Killers. Zwei Darstellungen:
+
+- **Echtes Charaktermodell** (`GhostPuppet`, Standard): Der `BoneRecorder` zeichnet das
+  komplette Skelett des lokalen Spielers auf (nur der lokale Spieler — deshalb bezahlbar:
+  ~einige hundert Transform-Reads pro Tick, flache vorallokierte Arrays, wenige MB). Beim
+  Replay wird die Leiche geklont — `Corpse.CreateCorpse` konvertiert das echte, angezogene
+  Spieler-GameObject in-place, der Klon trägt also Kleidung + Gear. Der Klon wird unter einem
+  INAKTIVEN Holder instanziert (kein Awake läuft), alle Scripts/Physik/Animator per
+  `DestroyImmediate` gestrippt (kein Awake → keine OnDestroy-Seiteneffekte), Knochen per
+  Hierarchie-Pfad gemappt und pro Frame mit den aufgezeichneten Posen überschrieben —
+  **kein Animator nötig**, exakte Wiedergabe von Gang, Lean und Zielen.
+- **Silhouette** (`ReplayGhost`, automatischer Fallback): Kapsel-Körper mit haltungsabhängiger
+  Höhe, Kopf-Kugel, Blickrichtungs-Balken — falls Puppet-Erstellung fehlschlägt oder
+  `UseRealModelGhost` aus ist.
+
+Beim F9-Debug-Replay ist der Ghost der eigene Pfad (Puppet-Quelle = lebender Körper; der
+eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich selbst zusehen.
 
 ## Performance-Budget
 
@@ -41,6 +53,8 @@ Pfad: vor einen Bot stellen, F9 drücken, sich selbst zusehen.
   Track-Dictionary wächst nur, wenn ein neuer Spieler spawnt. Extraktion des Replay-Fensters
   allokiert nur einmal beim Tod.
 - **Speicher:** 32 Bytes/Snapshot × 20 Hz × 15 s ≈ 9,6 KB pro Spieler; bei 40 Spielern ≈ 385 KB.
+  Der Bone-Recorder (nur lokaler Spieler) kommt je nach Skelettgröße auf einige MB
+  (wird beim Raid-Start geloggt).
 
 ## Konfiguration (BepInEx F12 / Config-Datei)
 
@@ -51,6 +65,7 @@ Pfad: vor einen Bot stellen, F9 drücken, sich selbst zusehen.
 | Replay.Duration | 5 s | Replay-Länge |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
 | Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
+| Replay.UseRealModelGhost | true | Echtes Charaktermodell statt Silhouette (Fallback automatisch) |
 | Replay.HideLiveBots | true | Lebende Bots während des Replays ausblenden |
 | Replay.InvertPitch | false | Vertikale Blickrichtung invertieren (falls Kamera falsch kippt) |
 | Debug.ReplayKey | F9 | Replay des nächstgelegenen Bots sofort abspielen (Test ohne Sterben) |

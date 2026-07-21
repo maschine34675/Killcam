@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace KillcamReplay;
 
-[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.2.0")]
+[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.3.0")]
 public class Plugin : BaseUnityPlugin
 {
     public static Plugin Instance;
@@ -20,6 +20,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<float> ReplayDuration;
     public static ConfigEntry<bool> DeathReplay;
     public static ConfigEntry<bool> ShowVictimGhost;
+    public static ConfigEntry<bool> UseRealModelGhost;
     public static ConfigEntry<bool> HideLiveBots;
     public static ConfigEntry<bool> InvertPitch;
     public static ConfigEntry<KeyboardShortcut> DebugReplayKey;
@@ -48,6 +49,8 @@ public class Plugin : BaseUnityPlugin
             "Replay beim eigenen Tod abspielen");
         ShowVictimGhost = Config.Bind("Replay", "ShowVictimGhost", true,
             "Eigene Silhouette (Ghost) im Replay anzeigen");
+        UseRealModelGhost = Config.Bind("Replay", "UseRealModelGhost", true,
+            "Echtes Charaktermodell (Corpse-Klon mit aufgezeichneten Knochen-Posen) statt Silhouette; bei Fehlern automatischer Fallback auf die Silhouette");
         HideLiveBots = Config.Bind("Replay", "HideLiveBots", true,
             "Lebende Bots während des Replays ausblenden (sie laufen sonst durchs Bild)");
         InvertPitch = Config.Bind("Replay", "InvertPitch", false,

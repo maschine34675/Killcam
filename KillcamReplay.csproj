@@ -21,6 +21,10 @@
     <Reference Include="UnityEngine.CoreModule" />
     <Reference Include="UnityEngine.IMGUIModule" />
     <Reference Include="UnityEngine.PhysicsModule" />
+    <Reference Include="UnityEngine.ClothModule" />
+    <Reference Include="UnityEngine.AnimationModule" />
+    <Reference Include="UnityEngine.AudioModule" />
+    <Reference Include="UnityEngine.ParticleSystemModule" />
     <Reference Include="UnityEngine.TextRenderingModule" />
     <Reference Include="UnityEngine.InputLegacyModule" />
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
