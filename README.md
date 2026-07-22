@@ -88,7 +88,10 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
   sind gepoolte Objekte (`AssetPoolObject`), die an einem Bone hängen — nicht garantiert
   Nachfahren von `player.gameObject` — deshalb wird zusätzlich `PlayerBody.SlotViews`
   durchlaufen (die eigene, autoritative Liste des Spiels für jede aktuell ausgerüstete
-  Ansicht) und deren `Renderers` explizit versteckt. Die eigene Leiche/der Live-Körper
+  Ansicht) und deren `Renderers` explizit versteckt. Eine Taschenlampe ist dabei kein
+  Renderer, sondern ein `UnityEngine.Light`-Component, das beim reinen Verstecken der Mesh
+  weiterleuchtet — deshalb werden zusätzlich alle `Light`-Komponenten (Spieler-Hierarchie +
+  Ausrüstungs-Slots) deaktiviert. Die eigene Leiche/der Live-Körper
   (Puppet-Quelle) wird ebenfalls ausgeblendet, sobald der Klon steht. Weitere Akteure als
   Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
 - **Kein Waffenmodell/Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker
