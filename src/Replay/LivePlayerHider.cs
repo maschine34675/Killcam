@@ -27,19 +27,29 @@ public class LivePlayerHider
             var player = players[i];
             if (player == null || player.IsYourPlayer || player.gameObject == null) continue;
 
-            var renderers = player.gameObject.GetComponentsInChildren<Renderer>(false);
-            for (int j = 0; j < renderers.Length; j++)
-            {
-                var renderer = renderers[j];
-                if (renderer != null && renderer.enabled)
-                {
-                    renderer.enabled = false;
-                    _hidden.Add(renderer);
-                }
-            }
+            HideRenderers(player.gameObject.GetComponentsInChildren<Renderer>(false));
+
+            // The equipped weapon's view hierarchy is not necessarily nested under the
+            // player's own GameObject, so the sweep above can miss it — hide it explicitly.
+            var weaponRoot = player.WeaponRoot?.Original;
+            if (weaponRoot != null)
+                HideRenderers(weaponRoot.GetComponentsInChildren<Renderer>(false));
         }
 
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Hid {_hidden.Count} renderers of live players");
+    }
+
+    private void HideRenderers(Renderer[] renderers)
+    {
+        for (int j = 0; j < renderers.Length; j++)
+        {
+            var renderer = renderers[j];
+            if (renderer != null && renderer.enabled)
+            {
+                renderer.enabled = false;
+                _hidden.Add(renderer);
+            }
+        }
     }
 
     public void RestoreAll()

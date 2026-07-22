@@ -32,11 +32,16 @@ Während des Replays sieht man sich selbst durch die Augen des Killers. Zwei Dar
   komplette Skelett des lokalen Spielers auf (nur der lokale Spieler — deshalb bezahlbar:
   ~einige hundert Transform-Reads pro Tick, flache vorallokierte Arrays, wenige MB). Beim
   Replay wird die Leiche geklont — `Corpse.CreateCorpse` konvertiert das echte, angezogene
-  Spieler-GameObject in-place, der Klon trägt also Kleidung + Gear. Der Klon wird unter einem
-  INAKTIVEN Holder instanziert (kein Awake läuft), alle Scripts/Physik/Animator per
-  `DestroyImmediate` gestrippt (kein Awake → keine OnDestroy-Seiteneffekte), Knochen per
-  Hierarchie-Pfad gemappt und pro Frame mit den aufgezeichneten Posen überschrieben —
-  **kein Animator nötig**, exakte Wiedergabe von Gang, Lean und Zielen.
+  Spieler-GameObject in-place, der Klon trägt also Kleidung + Gear. Vor dem Strippen wird
+  `PlayerBody.UpdatePlayerRenders(ThirdPerson, side)` auf dem Klon aufgerufen — sonst bleiben
+  Kopf/Oberkörper unsichtbar, weil EFT sie beim eigenen Spieler in Egoperspektive per
+  `ShadowCastingMode.ShadowsOnly` rendert (die Corpse-Konvertierung setzt das nie zurück) und
+  ein roher Klon diesen Zustand mit-kopiert. Der Klon wird unter einem INAKTIVEN Holder
+  instanziert (kein Awake läuft), alle Scripts/Physik/Animator per `DestroyImmediate`
+  gestrippt (kein Awake → keine OnDestroy-Seiteneffekte), Knochen per Hierarchie-Pfad gemappt
+  und pro Frame mit den aufgezeichneten Posen überschrieben — **kein Animator nötig**, exakte
+  Wiedergabe von Gang, Lean und Zielen. Die Quelle (Leiche bzw. Live-Körper) wird nach dem
+  Klonen ausgeblendet, damit sie nicht neben dem laufenden Ghost sichtbar bleibt.
 - **Silhouette** (`ReplayGhost`, automatischer Fallback): Kapsel-Körper mit haltungsabhängiger
   Höhe, Kopf-Kugel, Blickrichtungs-Balken — falls Puppet-Erstellung fehlschlägt oder
   `UseRealModelGhost` aus ist.
@@ -73,18 +78,32 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 ## Bekannte Einschränkungen (Prototyp)
 
 - **Die Welt läuft live weiter** — lebende Bots (inkl. des Killers) werden während des Replays
-  aber ausgeblendet (`LivePlayerHider`: nur `Renderer.enabled`, KI/Logik laufen weiter; danach
-  Wiederherstellung). Nur das Opfer wird als Ghost auf dem aufgezeichneten Pfad dargestellt;
-  der eigene Körper liegt zusätzlich an der Todesstelle. Weitere Akteure als Ghosts (z.B. der
-  Killer bei Drittperspektive) wären ein späterer Ausbau.
+  aber ausgeblendet (`LivePlayerHider`: `Renderer.enabled` inkl. Waffen-Renderer über
+  `Player.WeaponRoot`, KI/Logik laufen weiter; danach Wiederherstellung). Die eigene
+  Leiche/der Live-Körper (Puppet-Quelle) wird ebenfalls ausgeblendet, sobald der Klon steht.
+  Weitere Akteure als Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
 - **Kein Waffenmodell/Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker
   („● SCHUSS") angezeigt.
 - **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
   KillAndDamageInfo-Killcam).
+- **Waffe am Puppet nicht sichtbar**: Beim Klonen der Leiche wirft die Odin/Sirenix-
+  Deserialisierung des Waffen-Items (`Weapon.OnAfterDeserialize`) eine NullReferenceException
+  — das Item erwartet Backend-/Template-Kontext, den ein roher `Object.Instantiate` außerhalb
+  der normalen Item-Factory nicht mitbringt. Passiert intern in Unitys Deserialisierung, wird
+  nicht an uns durchgereicht (kein Crash), das Waffen-Mesh bleibt aber unsichtbar. Ein
+  belastbarer Fix (z.B. nur das Waffen-Mesh ohne Item-Logik separat an die gemappte Hand-Bone
+  hängen) ist ein eigenes, tieferes Stück Arbeit — aktuell nicht umgesetzt.
 - **Koexistenz mit KillAndDamageInfo:** Dessen Live-Killcam besitzt ebenfalls die Todessequenz
   (deferred Stop + Kamera-Übernahme). Ist die Mod geladen, deaktiviert sich das Death-Replay
   automatisch (Log-Warnung); das F9-Debug-Replay funktioniert weiterhin. Zum Testen des
   Death-Replays die KillAndDamageInfo.dll temporär aus `BepInEx/plugins` nehmen.
+- **Respawn-Kompatibilität (z.B. CorpseRun):** Die Aufzeichnung wird beim eigenen Tod
+  absichtlich NICHT dauerhaft gestoppt (nur während der ~10s, die ein Replay aktiv den
+  Bildschirm belegt) — sonst bricht die Aufzeichnung nach dem ersten Tod endgültig ab und
+  jedes weitere Replay in derselben Runde scheitert mit „Killer track too short". Der
+  `BoneRecorder` erkennt einen Charakterwechsel (neues Player-GameObject nach Respawn) und
+  initialisiert sich automatisch neu. In-game verifiziert mit CorpseRun (mehrere Tode/Replays
+  in einer Runde).
 
 ## Build
 

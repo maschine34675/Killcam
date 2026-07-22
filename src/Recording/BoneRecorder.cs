@@ -51,8 +51,18 @@ public class BoneRecorder
 
     public void TrySample(Player mainPlayer, float now)
     {
-        if (mainPlayer == null || _initFailed || _capacity == 0) return;
+        if (mainPlayer == null || _capacity == 0) return;
 
+        // A respawn (e.g. via CorpseRun) gives a new Player/GameObject for the local
+        // character; the cached bone Transforms would otherwise point at the discarded
+        // old body (or, once destroyed, compare Unity-null). Start fresh for the new one.
+        if (_bones != null && (_root == null || mainPlayer.gameObject.transform != _root))
+        {
+            Plugin.Instance.Logger.LogInfo("[KillcamReplay] BoneRecorder: main player changed — reinitializing for respawn");
+            Reset(_capacity);
+        }
+
+        if (_initFailed) return;
         if (_bones == null && !Init(mainPlayer))
             return;
 

@@ -57,7 +57,7 @@ public class ReplayController : MonoBehaviour
     }
 
     private void Play(Snapshot[] killerPath, Snapshot[] victimPath, BoneWindow boneWindow,
-        GameObject puppetSource, List<float> shots, string killerName)
+        GameObject puppetSource, EPlayerSide puppetSide, List<float> shots, string killerName)
     {
         _cameraPath = new PathCursor(killerPath);
         _victimPath = victimPath != null && victimPath.Length >= 2 && Plugin.ShowVictimGhost.Value
@@ -78,7 +78,7 @@ public class ReplayController : MonoBehaviour
             if (Plugin.ShowVictimGhost.Value)
             {
                 if (Plugin.UseRealModelGhost.Value && boneWindow != null && puppetSource != null)
-                    _puppet = GhostPuppet.TryCreate(puppetSource, boneWindow);
+                    _puppet = GhostPuppet.TryCreate(puppetSource, boneWindow, puppetSide);
 
                 if (_puppet == null && _victimPath != null)
                     _ghost = new ReplayGhost();
@@ -180,7 +180,7 @@ public class ReplayController : MonoBehaviour
             puppetSource = corpse != null ? corpse.gameObject : deadPlayer.gameObject;
         }
 
-        Play(killerPath, victimPath, boneWindow, puppetSource, shots, killerName);
+        Play(killerPath, victimPath, boneWindow, puppetSource, deadPlayer.Side, shots, killerName);
         while (_playing)
             yield return null;
 
@@ -235,13 +235,13 @@ public class ReplayController : MonoBehaviour
             victimPath = mainTrack.ExtractWindow(from, now);
         var boneWindow = Plugin.Recorder.Bones.ExtractWindow(from, now);
 
-        StartCoroutine(RunDebugReplay(main.gameObject, path, victimPath, boneWindow, shots, nearest.Profile?.Nickname ?? "Bot"));
+        StartCoroutine(RunDebugReplay(main.gameObject, main.Side, path, victimPath, boneWindow, shots, nearest.Profile?.Nickname ?? "Bot"));
     }
 
-    private IEnumerator RunDebugReplay(GameObject puppetSource, Snapshot[] path, Snapshot[] victimPath,
+    private IEnumerator RunDebugReplay(GameObject puppetSource, EPlayerSide puppetSide, Snapshot[] path, Snapshot[] victimPath,
         BoneWindow boneWindow, List<float> shots, string name)
     {
-        Play(path, victimPath, boneWindow, puppetSource, shots, name);
+        Play(path, victimPath, boneWindow, puppetSource, puppetSide, shots, name);
         while (_playing)
             yield return null;
         // Nothing to restore — the player's camera controller was never touched and

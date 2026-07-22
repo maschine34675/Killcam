@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using EFT;
 using KillcamReplay.Recording;
 using UnityEngine;
 
@@ -17,13 +19,15 @@ public class GhostPuppet
     private readonly Transform _cloneRoot;
     private readonly Transform[] _mapped;
     private readonly BoneWindow _window;
+    private readonly GameObject _source;
+    private readonly List<Renderer> _hiddenSourceRenderers = new();
     private int _cursor;
 
-    public static GhostPuppet TryCreate(GameObject source, BoneWindow window)
+    public static GhostPuppet TryCreate(GameObject source, BoneWindow window, EPlayerSide side)
     {
         try
         {
-            var puppet = new GhostPuppet(source, window);
+            var puppet = new GhostPuppet(source, window, side);
             return puppet;
         }
         catch (System.Exception ex)
@@ -33,14 +37,25 @@ public class GhostPuppet
         }
     }
 
-    private GhostPuppet(GameObject source, BoneWindow window)
+    private GhostPuppet(GameObject source, BoneWindow window, EPlayerSide side)
     {
         _window = window;
+        _source = source;
 
         _holder = new GameObject("KillcamReplayPuppet");
         _holder.SetActive(false);
 
         var clone = Object.Instantiate(source, _holder.transform, true);
+
+        // The local player's own head/torso render in ShadowsOnly mode while in first
+        // person (EFT's classic "hide your own head from your own camera" trick, set via
+        // PlayerBody.UpdatePlayerRenders). The corpse conversion never resets this, so a
+        // raw clone inherits it and appears headless/torso-less. Force third-person
+        // rendering on the clone before stripping PlayerBody away.
+        var cloneBody = clone.GetComponentInChildren<PlayerBody>(true);
+        if (cloneBody != null)
+            cloneBody.UpdatePlayerRenders(EPointOfView.ThirdPerson, side);
+
         Sanitize(clone);
         _cloneRoot = clone.transform;
 
@@ -55,6 +70,27 @@ public class GhostPuppet
 
         Apply(window.Times[0]);
         _holder.SetActive(true);
+
+        // Hide the source's own renderers now that the clone has copied their visual
+        // state — hiding before Instantiate would make the clone invisible too. This
+        // keeps the real corpse (death replay) or the live body (F9 debug replay) from
+        // showing alongside the puppet walking its recorded path.
+        HideSourceRenderers();
+    }
+
+    private void HideSourceRenderers()
+    {
+        if (_source == null) return;
+        var renderers = _source.GetComponentsInChildren<Renderer>(false);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            var renderer = renderers[i];
+            if (renderer != null && renderer.enabled)
+            {
+                renderer.enabled = false;
+                _hiddenSourceRenderers.Add(renderer);
+            }
+        }
     }
 
     private static void Sanitize(GameObject clone)
@@ -126,6 +162,14 @@ public class GhostPuppet
 
     public void Destroy()
     {
+        for (int i = 0; i < _hiddenSourceRenderers.Count; i++)
+        {
+            var renderer = _hiddenSourceRenderers[i];
+            if (renderer != null)
+                renderer.enabled = true;
+        }
+        _hiddenSourceRenderers.Clear();
+
         if (_holder != null)
             Object.Destroy(_holder);
     }

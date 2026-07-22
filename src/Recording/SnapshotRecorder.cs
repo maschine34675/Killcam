@@ -101,11 +101,6 @@ public class SnapshotRecorder : MonoBehaviour
         Bones.Reset(_capacity);
     }
 
-    public void StopRecording()
-    {
-        _armed = false;
-    }
-
     public bool TryGetTrack(Player player, out PlayerTrack track)
     {
         return _tracks.TryGetValue(player, out track);
@@ -120,7 +115,10 @@ public class SnapshotRecorder : MonoBehaviour
 
     private void Update()
     {
-        if (!_armed) return;
+        // Recording is intentionally never disarmed on local-player death: with a
+        // respawn mod (e.g. CorpseRun) the raid continues and tracking must too.
+        // Only pause for the few seconds a replay actively owns the screen.
+        if (!_armed || (Plugin.ReplayCtrl != null && Plugin.ReplayCtrl.IsPlaying)) return;
 
         float now = Time.time;
         if (now < _nextSampleTime) return;

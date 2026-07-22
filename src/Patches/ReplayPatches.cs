@@ -71,8 +71,6 @@ public static class ReplayPatches
             {
                 if (!__instance.IsYourPlayer) return;
 
-                Plugin.Recorder.StopRecording();
-
                 if (!Plugin.DeathReplayActive) return;
 
                 var killer = ___LastAggressor as Player;
