@@ -94,6 +94,24 @@ public class GhostPuppet
         }
     }
 
+    // Object.DestroyImmediate on a component blocked by a [RequireComponent]
+    // dependency does NOT throw a catchable C# exception — Unity logs
+    // "Can't remove X because Y depends on it" internally and silently no-ops. A
+    // try/catch around it therefore can't detect or react to the failure; the only
+    // way to avoid the log spam is to never attempt a blocked removal in the first
+    // place, which means respecting dependency direction:
+    //   - A requirer (Y, e.g. a script or filter) can ALWAYS be removed —
+    //     removing the "needs X" side is never blocked by its own requirement.
+    //   - The required side (X) can only be removed once every requirer is gone.
+    // So: destroy Joints before Rigidbodies (the one common, predictable native
+    // pairing on a ragdoll skeleton — every bone hits it, so it's worth a
+    // dedicated pass to avoid a burst of identical log lines), then every
+    // MonoBehaviour (script) before any native component (a script can require a
+    // native component, e.g. AnimatorRootMotionAccess→Animator or the bundled
+    // Meta XR spatial-audio scripts→AudioSource, but never the reverse), then
+    // whatever native components remain. Each stage retries in passes since a
+    // requirer can itself have its own requirer (script chains, or a script
+    // requiring a native filter that another native component also requires).
     private static void Sanitize(GameObject clone)
     {
         // Disable rather than destroy: safer for complex Odin-serialized modules
@@ -101,14 +119,23 @@ public class GhostPuppet
         foreach (var l in clone.GetComponentsInChildren<Light>(true)) l.enabled = false;
         foreach (var p in clone.GetComponentsInChildren<ParticleSystem>(true)) p.Stop();
 
-        // Everything else gets destroyed — Transform (can't be destroyed) and the mesh
-        // rendering components (needed for the puppet to be visible) are excluded.
-        // [RequireComponent] dependencies (e.g. AnimatorRootMotionAccess requiring
-        // Animator) block a destroy until the dependent is gone first; a single
-        // component-type-ordered pass can't know that ordering in general (native
-        // components like Animator/Rigidbody aren't MonoBehaviours, so they can't be
-        // swept together with scripts either) — so every component type is retried
-        // together across passes until a pass removes nothing more.
+        int stripped = 0;
+        foreach (var j in clone.GetComponentsInChildren<Joint>(true))
+        {
+            Object.DestroyImmediate(j);
+            if (j == null) stripped++;
+        }
+
+        stripped += StripUntilStable(clone, c => c is MonoBehaviour);
+        stripped += StripUntilStable(clone, c =>
+            c is not Transform && c is not Renderer && c is not MeshFilter
+            && c is not Light && c is not ParticleSystem);
+
+        Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Puppet: stripped {stripped} components");
+    }
+
+    private static int StripUntilStable(GameObject clone, System.Func<Component, bool> shouldRemove)
+    {
         int stripped = 0;
         for (int pass = 0; pass < 10; pass++)
         {
@@ -116,24 +143,24 @@ public class GhostPuppet
             bool any = false;
             foreach (var c in components)
             {
-                if (c == null || c is Transform || c is Renderer || c is MeshFilter
-                    || c is Light || c is ParticleSystem)
-                    continue;
+                if (c == null || !shouldRemove(c)) continue;
                 try
                 {
                     Object.DestroyImmediate(c);
-                    stripped++;
-                    any = true;
                 }
                 catch
                 {
-                    // dependency still present — next pass
+                    // some third-party OnDestroy hook threw — leave it, try again next pass
+                }
+                if (c == null) // actually removed (Unity fake-null after a real destroy)
+                {
+                    stripped++;
+                    any = true;
                 }
             }
             if (!any) break;
         }
-
-        Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Puppet: stripped {stripped} components");
+        return stripped;
     }
 
     public void Apply(float t)
