@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using EFT;
 using KillcamReplay.Recording;
 using UnityEngine;
 
@@ -23,11 +22,11 @@ public class GhostPuppet
     private readonly List<Renderer> _hiddenSourceRenderers = new();
     private int _cursor;
 
-    public static GhostPuppet TryCreate(GameObject source, BoneWindow window, EPlayerSide side)
+    public static GhostPuppet TryCreate(GameObject source, BoneWindow window)
     {
         try
         {
-            var puppet = new GhostPuppet(source, window, side);
+            var puppet = new GhostPuppet(source, window);
             return puppet;
         }
         catch (System.Exception ex)
@@ -37,7 +36,7 @@ public class GhostPuppet
         }
     }
 
-    private GhostPuppet(GameObject source, BoneWindow window, EPlayerSide side)
+    private GhostPuppet(GameObject source, BoneWindow window)
     {
         _window = window;
         _source = source;
@@ -48,13 +47,15 @@ public class GhostPuppet
         var clone = Object.Instantiate(source, _holder.transform, true);
 
         // The local player's own head/torso render in ShadowsOnly mode while in first
-        // person (EFT's classic "hide your own head from your own camera" trick, set via
-        // PlayerBody.UpdatePlayerRenders). The corpse conversion never resets this, so a
-        // raw clone inherits it and appears headless/torso-less. Force third-person
-        // rendering on the clone before stripping PlayerBody away.
-        var cloneBody = clone.GetComponentInChildren<PlayerBody>(true);
-        if (cloneBody != null)
-            cloneBody.UpdatePlayerRenders(EPointOfView.ThirdPerson, side);
+        // person (EFT's "hide your own head from your own camera" trick). The corpse
+        // conversion never resets it, so a raw clone inherits the hidden state.
+        // PlayerBody.UpdatePlayerRenders() is the game's normal fix for this, but it
+        // iterates PlayerBody.BodySkins, which is populated at Awake/equip time — empty
+        // on a clone whose Awake we deliberately never let run. So force every renderer
+        // in the clone to cast+render normally directly, before Sanitize strips
+        // PlayerBody (and everything else) away.
+        foreach (var renderer in clone.GetComponentsInChildren<Renderer>(true))
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
 
         Sanitize(clone);
         _cloneRoot = clone.transform;

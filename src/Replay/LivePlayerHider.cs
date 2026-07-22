@@ -29,11 +29,21 @@ public class LivePlayerHider
 
             HideRenderers(player.gameObject.GetComponentsInChildren<Renderer>(false));
 
-            // The equipped weapon's view hierarchy is not necessarily nested under the
-            // player's own GameObject, so the sweep above can miss it — hide it explicitly.
-            var weaponRoot = player.WeaponRoot?.Original;
-            if (weaponRoot != null)
-                HideRenderers(weaponRoot.GetComponentsInChildren<Renderer>(false));
+            // Equipment view models (weapon, chest rig, backpack, headwear, ...) are
+            // pooled objects (AssetPoolObject) attached to a bone Transform per slot —
+            // not guaranteed to be a descendant the sweep above reaches. PlayerBody.SlotViews
+            // is the game's own authoritative list of every currently equipped view, each
+            // exposing its Renderers directly — hide those explicitly too.
+            var slotViews = player.PlayerBody?.SlotViews;
+            if (slotViews != null)
+            {
+                foreach (var slot in slotViews.GetValuesEnumerator())
+                {
+                    var renderers = slot?.Renderers;
+                    if (renderers != null)
+                        HideRenderers(renderers);
+                }
+            }
         }
 
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Hid {_hidden.Count} renderers of live players");
