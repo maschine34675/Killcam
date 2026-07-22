@@ -96,30 +96,32 @@ public class GhostPuppet
 
     private static void Sanitize(GameObject clone)
     {
-        int stripped = 0;
-
-        // joints before rigidbodies (CharacterJoint requires Rigidbody)
-        foreach (var j in clone.GetComponentsInChildren<Joint>(true)) { Object.DestroyImmediate(j); stripped++; }
-        foreach (var r in clone.GetComponentsInChildren<Rigidbody>(true)) { Object.DestroyImmediate(r); stripped++; }
-        foreach (var c in clone.GetComponentsInChildren<Collider>(true)) { Object.DestroyImmediate(c); stripped++; }
-        foreach (var c in clone.GetComponentsInChildren<Cloth>(true)) { Object.DestroyImmediate(c); stripped++; }
-        foreach (var a in clone.GetComponentsInChildren<Animator>(true)) { Object.DestroyImmediate(a); stripped++; }
-        foreach (var a in clone.GetComponentsInChildren<Animation>(true)) { Object.DestroyImmediate(a); stripped++; }
-        foreach (var a in clone.GetComponentsInChildren<AudioSource>(true)) { Object.DestroyImmediate(a); stripped++; }
+        // Disable rather than destroy: safer for complex Odin-serialized modules
+        // (ParticleSystem) and there's no benefit to actually removing the component.
         foreach (var l in clone.GetComponentsInChildren<Light>(true)) l.enabled = false;
         foreach (var p in clone.GetComponentsInChildren<ParticleSystem>(true)) p.Stop();
 
-        // scripts may depend on each other via [RequireComponent] — sweep in passes
-        for (int pass = 0; pass < 8; pass++)
+        // Everything else gets destroyed — Transform (can't be destroyed) and the mesh
+        // rendering components (needed for the puppet to be visible) are excluded.
+        // [RequireComponent] dependencies (e.g. AnimatorRootMotionAccess requiring
+        // Animator) block a destroy until the dependent is gone first; a single
+        // component-type-ordered pass can't know that ordering in general (native
+        // components like Animator/Rigidbody aren't MonoBehaviours, so they can't be
+        // swept together with scripts either) — so every component type is retried
+        // together across passes until a pass removes nothing more.
+        int stripped = 0;
+        for (int pass = 0; pass < 10; pass++)
         {
-            var scripts = clone.GetComponentsInChildren<MonoBehaviour>(true);
+            var components = clone.GetComponentsInChildren<Component>(true);
             bool any = false;
-            foreach (var script in scripts)
+            foreach (var c in components)
             {
-                if (script == null) continue;
+                if (c == null || c is Transform || c is Renderer || c is MeshFilter
+                    || c is Light || c is ParticleSystem)
+                    continue;
                 try
                 {
-                    Object.DestroyImmediate(script);
+                    Object.DestroyImmediate(c);
                     stripped++;
                     any = true;
                 }
