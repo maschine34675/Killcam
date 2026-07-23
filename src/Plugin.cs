@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace KillcamReplay;
 
-[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.3.6")]
+[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.4.0")]
 public class Plugin : BaseUnityPlugin
 {
     public static Plugin Instance;
@@ -18,6 +18,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<int> SampleRate;
     public static ConfigEntry<float> BufferSeconds;
     public static ConfigEntry<float> ReplayDuration;
+    public static ConfigEntry<float> LiveTailSeconds;
     public static ConfigEntry<bool> DeathReplay;
     public static ConfigEntry<bool> ShowVictimGhost;
     public static ConfigEntry<bool> UseRealModelGhost;
@@ -45,6 +46,8 @@ public class Plugin : BaseUnityPlugin
             new ConfigDescription("Länge des Ringpuffers in Sekunden", new AcceptableValueRange<float>(5f, 60f)));
         ReplayDuration = Config.Bind("Replay", "Duration", 5f,
             new ConfigDescription("Replay-Länge in Sekunden", new AcceptableValueRange<float>(2f, 12f)));
+        LiveTailSeconds = Config.Bind("Replay", "LiveTailSeconds", 2f,
+            new ConfigDescription("Nach Replay-Ende noch so lange live aus der letzten Killer-Position weiterzeigen (Übergang wird kurz abgeblendet)", new AcceptableValueRange<float>(0f, 10f)));
         DeathReplay = Config.Bind("Replay", "DeathReplay", true,
             "Replay beim eigenen Tod abspielen");
         ShowVictimGhost = Config.Bind("Replay", "ShowVictimGhost", true,

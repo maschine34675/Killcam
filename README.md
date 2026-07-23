@@ -25,6 +25,15 @@ Raid-Ende-Sequenz abbricht (Soft-Lock). Der Todes-Fade (`EffectsController.metho
 DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst läge er schwarz
 über dem Replay.
 
+**Weiches Ende (Live-Tail):**
+Am Ende des aufgezeichneten Pfads (dem Kill-Moment) endet das Replay nicht hart: kurzer
+Fade zu Schwarz (~0,2s), unter Voll-Schwarz der Szenenwechsel auf die Live-Welt (Puppet
+weg, versteckte Bots und die eigene Leiche wieder sichtbar), Fade zurück, dann bleibt die
+Kamera noch `LiveTailSeconds` (Standard 2s) an der letzten Killer-Position und zeigt das
+Live-Geschehen. Die Abblendung kaschiert den Zeitsprung von der Aufzeichnung in die
+Gegenwart. Beim F9-Debug-Replay ist der Tail bewusst deaktiviert (der Spieler lebt und
+wäre so lange blind).
+
 **Victim-Ghost (Phase 2/3):**
 Während des Replays sieht man sich selbst durch die Augen des Killers. Zwei Darstellungen:
 
@@ -73,6 +82,7 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 | Recording.SampleRate | 20 Hz | Aufnahmerate |
 | Recording.BufferSeconds | 15 s | Ringpuffer-Länge |
 | Replay.Duration | 5 s | Replay-Länge |
+| Replay.LiveTailSeconds | 2 s | Nach Replay-Ende noch live aus der letzten Killer-Position weiterzeigen (0 = aus) |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
 | Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
 | Replay.UseRealModelGhost | true | Echtes Charaktermodell statt Silhouette (Fallback automatisch) |
@@ -109,10 +119,6 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
   nicht an uns durchgereicht (kein Crash), das Waffen-Mesh bleibt aber unsichtbar. Ein
   belastbarer Fix (z.B. nur das Waffen-Mesh ohne Item-Logik separat an die gemappte Hand-Bone
   hängen) ist ein eigenes, tieferes Stück Arbeit — aktuell nicht umgesetzt.
-- **Abruptes Replay-Ende**: Das Replay endet hart, sobald der aufgezeichnete Pfad erschöpft
-  ist. Geplant: nach dem letzten Frame noch ~2s live weiterlaufen lassen (Kamera bleibt an der
-  Killer-Position, aber echte Spielwelt statt Aufzeichnung) und den Schnitt Replay→Live mit
-  einer kurzen (~0,2s) Abblendung kaschieren. Noch nicht umgesetzt.
 - **Koexistenz mit KillAndDamageInfo:** Dessen Live-Killcam besitzt ebenfalls die Todessequenz
   (deferred Stop + Kamera-Übernahme). Ist die Mod geladen, deaktiviert sich das Death-Replay
   automatisch (Log-Warnung); das F9-Debug-Replay funktioniert weiterhin. Zum Testen des

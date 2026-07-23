@@ -21,6 +21,7 @@ public class ReplayController : MonoBehaviour
 {
     public const float LeadIn = 0.8f;
     public const float TailBuffer = 0.7f;
+    public const float EndFadeDuration = 0.2f;
 
     public static Player PendingReplayKiller;
 
@@ -36,6 +37,10 @@ public class ReplayController : MonoBehaviour
     private float _clock;
     private float _startTime;
     private bool _playing;
+    private bool _withLiveTail;
+    private bool _inEnding;
+    private bool _cutToLive;
+    private float _endClock;
     private string _killerName;
     private Camera _camera;
     private GUIStyle _labelStyle;
@@ -46,7 +51,7 @@ public class ReplayController : MonoBehaviour
     public static float GetExtraDelay()
     {
         return PendingReplayKiller != null
-            ? LeadIn + Plugin.ReplayDuration.Value + TailBuffer
+            ? LeadIn + Plugin.ReplayDuration.Value + 2f * EndFadeDuration + Plugin.LiveTailSeconds.Value + TailBuffer
             : 0f;
     }
 
@@ -57,7 +62,7 @@ public class ReplayController : MonoBehaviour
     }
 
     private void Play(Snapshot[] killerPath, Snapshot[] victimPath, BoneWindow boneWindow,
-        GameObject puppetSource, List<float> shots, string killerName)
+        GameObject puppetSource, List<float> shots, string killerName, bool withLiveTail)
     {
         _cameraPath = new PathCursor(killerPath);
         _victimPath = victimPath != null && victimPath.Length >= 2 && Plugin.ShowVictimGhost.Value
@@ -66,6 +71,10 @@ public class ReplayController : MonoBehaviour
         _shots = shots;
         _killerName = killerName;
         _clock = 0f;
+        _withLiveTail = withLiveTail;
+        _inEnding = false;
+        _cutToLive = false;
+        _endClock = 0f;
         _startTime = _cameraPath.StartTime;
         _camera = CameraClass.Instance?.Camera;
         _playing = _camera != null && killerPath.Length >= 2;
@@ -95,6 +104,8 @@ public class ReplayController : MonoBehaviour
     private void EndPlayback(string reason)
     {
         _playing = false;
+        _inEnding = false;
+        _cutToLive = false;
         Application.onBeforeRender -= ApplyCurrentPose;
         _ghost?.Destroy();
         _ghost = null;
@@ -120,15 +131,58 @@ public class ReplayController : MonoBehaviour
             return;
         }
 
+        if (_inEnding)
+        {
+            UpdateEnding();
+            return;
+        }
+
         _clock += Time.deltaTime;
 
         if (_startTime + _clock >= _cameraPath.EndTime)
         {
             ApplyCurrentPose();
-            EndPlayback("path exhausted");
+            if (_withLiveTail)
+            {
+                _inEnding = true;
+                _endClock = 0f;
+            }
+            else
+            {
+                EndPlayback("path exhausted");
+            }
             return;
         }
 
+        ApplyCurrentPose();
+    }
+
+    // Ending sequence once the recorded path is exhausted (the kill moment): fade
+    // to black (~0.2s), swap the replay scene for the live world under full black
+    // (puppet gone, source/corpse and hidden bots restored), fade back in and hold
+    // the killer's final viewpoint for a few live seconds before handing the
+    // camera back. The fade masks the time jump from the recorded past to now.
+    private void UpdateEnding()
+    {
+        _endClock += Time.deltaTime;
+
+        if (!_cutToLive && _endClock >= EndFadeDuration)
+        {
+            _cutToLive = true;
+            _ghost?.Destroy();
+            _ghost = null;
+            _puppet?.Destroy();
+            _puppet = null;
+            _hider.RestoreAll();
+        }
+
+        if (_endClock >= 2f * EndFadeDuration + Plugin.LiveTailSeconds.Value)
+        {
+            EndPlayback("live tail complete");
+            return;
+        }
+
+        // keep the camera frozen at the killer's final recorded pose
         ApplyCurrentPose();
     }
 
@@ -180,7 +234,7 @@ public class ReplayController : MonoBehaviour
             puppetSource = corpse != null ? corpse.gameObject : deadPlayer.gameObject;
         }
 
-        Play(killerPath, victimPath, boneWindow, puppetSource, shots, killerName);
+        Play(killerPath, victimPath, boneWindow, puppetSource, shots, killerName, withLiveTail: true);
         while (_playing)
             yield return null;
 
@@ -241,7 +295,9 @@ public class ReplayController : MonoBehaviour
     private IEnumerator RunDebugReplay(GameObject puppetSource, Snapshot[] path, Snapshot[] victimPath,
         BoneWindow boneWindow, List<float> shots, string name)
     {
-        Play(path, victimPath, boneWindow, puppetSource, shots, name);
+        // No live tail on the debug replay: the player is alive and holding their
+        // view frozen for extra seconds would get them killed for a debug feature.
+        Play(path, victimPath, boneWindow, puppetSource, shots, name, withLiveTail: false);
         while (_playing)
             yield return null;
         // Nothing to restore — the player's camera controller was never touched and
@@ -268,13 +324,31 @@ public class ReplayController : MonoBehaviour
 
         GUI.Label(new Rect(0, 20, Screen.width, 34), $"KILLCAM — {_killerName}", _labelStyle);
 
-        float t = _startTime + _clock;
-        for (int i = 0; i < _shots.Count; i++)
+        if (!_inEnding)
         {
-            if (Mathf.Abs(_shots[i] - t) < 0.15f)
+            float t = _startTime + _clock;
+            for (int i = 0; i < _shots.Count; i++)
             {
-                GUI.Label(new Rect(0, 56, Screen.width, 24), "● SCHUSS", _shotStyle);
-                break;
+                if (Mathf.Abs(_shots[i] - t) < 0.15f)
+                {
+                    GUI.Label(new Rect(0, 56, Screen.width, 24), "● SCHUSS", _shotStyle);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // fade out to black over the cut to live, then back in; alpha stays 0
+            // during the live hold
+            float alpha = _endClock < EndFadeDuration
+                ? _endClock / EndFadeDuration
+                : Mathf.Clamp01(1f - (_endClock - EndFadeDuration) / EndFadeDuration);
+            if (alpha > 0f)
+            {
+                var prev = GUI.color;
+                GUI.color = new Color(0f, 0f, 0f, alpha);
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = prev;
             }
         }
     }
