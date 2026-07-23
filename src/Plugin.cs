@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace KillcamReplay;
 
-[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.4.0")]
+[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.4.1")]
 public class Plugin : BaseUnityPlugin
 {
     public static Plugin Instance;
@@ -19,6 +19,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<float> BufferSeconds;
     public static ConfigEntry<float> ReplayDuration;
     public static ConfigEntry<float> LiveTailSeconds;
+    public static ConfigEntry<bool> FollowKillerInTail;
     public static ConfigEntry<bool> DeathReplay;
     public static ConfigEntry<bool> ShowVictimGhost;
     public static ConfigEntry<bool> UseRealModelGhost;
@@ -47,7 +48,9 @@ public class Plugin : BaseUnityPlugin
         ReplayDuration = Config.Bind("Replay", "Duration", 5f,
             new ConfigDescription("Replay-Länge in Sekunden", new AcceptableValueRange<float>(2f, 12f)));
         LiveTailSeconds = Config.Bind("Replay", "LiveTailSeconds", 2f,
-            new ConfigDescription("Nach Replay-Ende noch so lange live aus der letzten Killer-Position weiterzeigen (Übergang wird kurz abgeblendet)", new AcceptableValueRange<float>(0f, 10f)));
+            new ConfigDescription("Nach Replay-Ende noch so lange live weiterzeigen (Übergang wird kurz abgeblendet)", new AcceptableValueRange<float>(0f, 10f)));
+        FollowKillerInTail = Config.Bind("Replay", "FollowKillerInTail", true,
+            "Während des Live-Nachlaufs dem Killer live folgen statt an der letzten Position zu verharren");
         DeathReplay = Config.Bind("Replay", "DeathReplay", true,
             "Replay beim eigenen Tod abspielen");
         ShowVictimGhost = Config.Bind("Replay", "ShowVictimGhost", true,

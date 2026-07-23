@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Comfort.Common;
 using EFT;
+using KillcamReplay.Patches;
 using KillcamReplay.Recording;
 using UnityEngine;
 
@@ -33,6 +34,15 @@ public class ReplayController : MonoBehaviour
     private ReplayGhost _ghost;
     private GhostPuppet _puppet;
     private readonly LivePlayerHider _hider = new();
+    private enum EndingPhase
+    {
+        FadeOutCut,  // fade to black over the frozen final replay pose
+        FadeInLive,  // scene swapped to live under black, fading back in
+        LiveHold,    // live view following the killer (or frozen pose as fallback)
+        FinalFade,   // fade to black before handing the camera back
+        HoldBlack    // stay black until the re-invoked Stop's own black screen is up
+    }
+
     private List<float> _shots;
     private float _clock;
     private float _startTime;
@@ -40,7 +50,8 @@ public class ReplayController : MonoBehaviour
     private bool _withLiveTail;
     private bool _inEnding;
     private bool _cutToLive;
-    private float _endClock;
+    private EndingPhase _endPhase;
+    private float _phaseClock;
     private string _killerName;
     private Camera _camera;
     private GUIStyle _labelStyle;
@@ -74,7 +85,8 @@ public class ReplayController : MonoBehaviour
         _withLiveTail = withLiveTail;
         _inEnding = false;
         _cutToLive = false;
-        _endClock = 0f;
+        _endPhase = EndingPhase.FadeOutCut;
+        _phaseClock = 0f;
         _startTime = _cameraPath.StartTime;
         _camera = CameraClass.Instance?.Camera;
         _playing = _camera != null && killerPath.Length >= 2;
@@ -145,7 +157,8 @@ public class ReplayController : MonoBehaviour
             if (_withLiveTail)
             {
                 _inEnding = true;
-                _endClock = 0f;
+                _endPhase = EndingPhase.FadeOutCut;
+                _phaseClock = 0f;
             }
             else
             {
@@ -159,42 +172,109 @@ public class ReplayController : MonoBehaviour
 
     // Ending sequence once the recorded path is exhausted (the kill moment): fade
     // to black (~0.2s), swap the replay scene for the live world under full black
-    // (puppet gone, source/corpse and hidden bots restored), fade back in and hold
-    // the killer's final viewpoint for a few live seconds before handing the
-    // camera back. The fade masks the time jump from the recorded past to now.
+    // (puppet gone, corpse and hidden bots restored — except the killer, whose live
+    // eyes the camera follows from here), fade back in, hold the live view for a
+    // few seconds, then fade to black again and stay black until the re-invoked
+    // Stop's own black screen has taken over — so the corpse cam never flashes
+    // between the replay and the raid-end transition.
     private void UpdateEnding()
     {
-        _endClock += Time.deltaTime;
+        _phaseClock += Time.deltaTime;
 
-        if (!_cutToLive && _endClock >= EndFadeDuration)
+        switch (_endPhase)
         {
-            _cutToLive = true;
-            _ghost?.Destroy();
-            _ghost = null;
-            _puppet?.Destroy();
-            _puppet = null;
-            _hider.RestoreAll();
+            case EndingPhase.FadeOutCut:
+                if (_phaseClock >= EndFadeDuration)
+                {
+                    CutToLive();
+                    _endPhase = EndingPhase.FadeInLive;
+                    _phaseClock = 0f;
+                }
+                break;
+
+            case EndingPhase.FadeInLive:
+                if (_phaseClock >= EndFadeDuration)
+                {
+                    _endPhase = EndingPhase.LiveHold;
+                    _phaseClock = 0f;
+                }
+                break;
+
+            case EndingPhase.LiveHold:
+                if (_phaseClock >= Plugin.LiveTailSeconds.Value)
+                {
+                    if (ReplayPatches.DeferStopPatch.StopWasDeferred)
+                    {
+                        _endPhase = EndingPhase.FinalFade;
+                        _phaseClock = 0f;
+                    }
+                    else
+                    {
+                        // no deferred Stop owns the raid end (e.g. a respawn mod
+                        // intercepted the death) — hand the camera back directly
+                        EndPlayback("live tail complete");
+                        return;
+                    }
+                }
+                break;
+
+            case EndingPhase.FinalFade:
+                if (_phaseClock >= EndFadeDuration)
+                {
+                    _endPhase = EndingPhase.HoldBlack;
+                    _phaseClock = 0f;
+                }
+                break;
+
+            case EndingPhase.HoldBlack:
+                float reinvokedAt = ReplayPatches.DeferStopPatch.StopReinvokedAt;
+                bool gameBlackUp = reinvokedAt > 0f && Time.time - reinvokedAt >= 0.8f;
+                if (gameBlackUp || _phaseClock >= 4f)
+                {
+                    EndPlayback(gameBlackUp ? "handed off under black screen" : "black hold timeout");
+                    return;
+                }
+                break;
         }
 
-        if (_endClock >= 2f * EndFadeDuration + Plugin.LiveTailSeconds.Value)
-        {
-            EndPlayback("live tail complete");
-            return;
-        }
-
-        // keep the camera frozen at the killer's final recorded pose
         ApplyCurrentPose();
+    }
+
+    private void CutToLive()
+    {
+        _cutToLive = true;
+        _ghost?.Destroy();
+        _ghost = null;
+        _puppet?.Destroy();
+        _puppet = null;
+
+        // Keep the killer hidden while the camera follows his live eyes — his own
+        // model would clip into the view. He reappears at EndPlayback's RestoreAll.
+        if (PendingReplayKiller != null && Plugin.FollowKillerInTail.Value)
+            _hider.RestoreAllExcept(PendingReplayKiller);
+        else
+            _hider.RestoreAll();
     }
 
     private void ApplyCurrentPose()
     {
         if (!_playing || _camera == null) return;
 
+        var tr = _camera.transform;
+
+        // After the cut, the camera follows the killer's LIVE eyes; the frozen
+        // final replay pose is the fallback if he died or despawned meanwhile.
+        if (_cutToLive && TryGetLiveKillerPose(out var livePos, out var liveRot))
+        {
+            tr.position = livePos;
+            tr.rotation = liveRot;
+            return;
+        }
+
         float t = Mathf.Min(_startTime + _clock, _cameraPath.EndTime);
 
         var camSnap = _cameraPath.Sample(t);
         float pitch = Plugin.InvertPitch.Value ? -camSnap.Pitch : camSnap.Pitch;
-        var tr = _camera.transform;
         tr.position = camSnap.CamPos;
         tr.rotation = Quaternion.Euler(pitch, camSnap.Yaw, 0f);
 
@@ -209,6 +289,26 @@ public class ReplayController : MonoBehaviour
                 victimSnap.Pitch = -victimSnap.Pitch;
             _ghost.UpdatePose(victimSnap);
         }
+    }
+
+    private bool TryGetLiveKillerPose(out Vector3 pos, out Quaternion rot)
+    {
+        pos = default;
+        rot = default;
+        if (!Plugin.FollowKillerInTail.Value) return false;
+
+        var killer = PendingReplayKiller;
+        if (killer == null || killer.gameObject == null) return false;
+        if (killer.HealthController == null || !killer.HealthController.IsAlive) return false;
+
+        var camPos = killer.CameraPosition;
+        if (camPos == null) return false;
+
+        Vector2 rotation = killer.Rotation;
+        float pitch = Plugin.InvertPitch.Value ? -rotation.y : rotation.y;
+        pos = camPos.position;
+        rot = Quaternion.Euler(pitch, rotation.x, 0f);
+        return true;
     }
 
     private void OnDestroy()
@@ -338,11 +438,7 @@ public class ReplayController : MonoBehaviour
         }
         else
         {
-            // fade out to black over the cut to live, then back in; alpha stays 0
-            // during the live hold
-            float alpha = _endClock < EndFadeDuration
-                ? _endClock / EndFadeDuration
-                : Mathf.Clamp01(1f - (_endClock - EndFadeDuration) / EndFadeDuration);
+            float alpha = CurrentFadeAlpha();
             if (alpha > 0f)
             {
                 var prev = GUI.color;
@@ -350,6 +446,18 @@ public class ReplayController : MonoBehaviour
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
                 GUI.color = prev;
             }
+        }
+    }
+
+    private float CurrentFadeAlpha()
+    {
+        switch (_endPhase)
+        {
+            case EndingPhase.FadeOutCut: return Mathf.Clamp01(_phaseClock / EndFadeDuration);
+            case EndingPhase.FadeInLive: return Mathf.Clamp01(1f - _phaseClock / EndFadeDuration);
+            case EndingPhase.FinalFade: return Mathf.Clamp01(_phaseClock / EndFadeDuration);
+            case EndingPhase.HoldBlack: return 1f;
+            default: return 0f;
         }
     }
 }

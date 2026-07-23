@@ -32,6 +32,8 @@ public static class ReplayPatches
         public static void Postfix()
         {
             Plugin.Recorder.ResetForNewRaid();
+            DeferStopPatch.StopWasDeferred = false;
+            DeferStopPatch.StopReinvokedAt = 0f;
         }
     }
 
@@ -122,6 +124,14 @@ public static class ReplayPatches
     {
         private static bool _isReentry;
 
+        // Observed by the replay's ending sequence: when a deferred Stop owns the
+        // raid end, the final fade holds black until the re-invoked Stop's own
+        // black screen has taken over, so the corpse cam never flashes in between.
+        // When no Stop was deferred (e.g. a respawn mod intercepted the death),
+        // the replay hands the camera back immediately instead.
+        public static bool StopWasDeferred;
+        public static float StopReinvokedAt;
+
         protected override MethodBase GetTargetMethod()
         {
             return AccessTools.Method(typeof(LocalGame), nameof(LocalGame.Stop));
@@ -134,6 +144,8 @@ public static class ReplayPatches
                 return true;
 
             Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Deferring LocalGame.Stop by {ReplayController.GetExtraDelay():F1}s");
+            StopWasDeferred = true;
+            StopReinvokedAt = 0f;
             Plugin.Instance.StartCoroutine(DeferredStop(__instance, profileId, exitStatus, exitName, delay));
             return false;
         }
@@ -142,6 +154,7 @@ public static class ReplayPatches
         {
             yield return new WaitForSeconds(ReplayController.GetExtraDelay());
             Plugin.Instance.Logger.LogInfo("[KillcamReplay] Re-invoking deferred LocalGame.Stop");
+            StopReinvokedAt = Time.time;
             _isReentry = true;
             game.Stop(profileId, exitStatus, exitName, delay);
             _isReentry = false;

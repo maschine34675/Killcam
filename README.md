@@ -28,11 +28,17 @@ DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst l
 **Weiches Ende (Live-Tail):**
 Am Ende des aufgezeichneten Pfads (dem Kill-Moment) endet das Replay nicht hart: kurzer
 Fade zu Schwarz (~0,2s), unter Voll-Schwarz der Szenenwechsel auf die Live-Welt (Puppet
-weg, versteckte Bots und die eigene Leiche wieder sichtbar), Fade zurück, dann bleibt die
-Kamera noch `LiveTailSeconds` (Standard 2s) an der letzten Killer-Position und zeigt das
-Live-Geschehen. Die Abblendung kaschiert den Zeitsprung von der Aufzeichnung in die
-Gegenwart. Beim F9-Debug-Replay ist der Tail bewusst deaktiviert (der Spieler lebt und
-wäre so lange blind).
+weg, versteckte Bots und die eigene Leiche wieder sichtbar — nur der Killer bleibt
+ausgeblendet), Fade zurück, dann folgt die Kamera für `LiveTailSeconds` (Standard 2s)
+**live den Augen des Killers** (`FollowKillerInTail`; Fallback: letzte Replay-Position,
+falls er inzwischen tot ist). Danach blendet das Replay selbst zu Schwarz ab und hält
+Schwarz, bis der re-invokte `LocalGame.Stop` seinen eigenen Blackscreen aufgezogen hat
+(erkannt über `DeferStopPatch.StopReinvokedAt` + 0,8s; Not-Timeout 4s) — die Corpse-Cam
+blitzt also nie mehr zwischen Replay-Ende und Raid-Ende-Übergang auf. Wurde `Stop` nicht
+deferred (z.B. weil eine Respawn-Mod den Tod abgefangen hat), wird die Kamera nach dem
+Tail direkt zurückgegeben — kein Schwarz-Halten, das sonst den Respawn-Prompt verdecken
+würde. Beim F9-Debug-Replay ist der Tail bewusst deaktiviert (der Spieler lebt und wäre
+so lange blind).
 
 **Victim-Ghost (Phase 2/3):**
 Während des Replays sieht man sich selbst durch die Augen des Killers. Zwei Darstellungen:
@@ -82,7 +88,8 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 | Recording.SampleRate | 20 Hz | Aufnahmerate |
 | Recording.BufferSeconds | 15 s | Ringpuffer-Länge |
 | Replay.Duration | 5 s | Replay-Länge |
-| Replay.LiveTailSeconds | 2 s | Nach Replay-Ende noch live aus der letzten Killer-Position weiterzeigen (0 = aus) |
+| Replay.LiveTailSeconds | 2 s | Nach Replay-Ende noch live weiterzeigen (0 = aus) |
+| Replay.FollowKillerInTail | true | Im Live-Nachlauf dem Killer live folgen statt statisch zu verharren |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
 | Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
 | Replay.UseRealModelGhost | true | Echtes Charaktermodell statt Silhouette (Fallback automatisch) |

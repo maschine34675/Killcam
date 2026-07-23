@@ -10,17 +10,28 @@ namespace KillcamReplay.Replay;
 // visual: only Renderer.enabled/Light.enabled are toggled, AI and game logic keep
 // running. The local player is never hidden (dead → not in the list anyway; F9 →
 // own live body marks the path end, like the corpse does in a death replay).
+// Hidden state is tracked per player so the cut to the live tail can restore
+// everyone EXCEPT the killer (whose eyes the camera then follows).
 public class LivePlayerHider
 {
-    private readonly List<Renderer> _hiddenRenderers = new();
-    private readonly List<Light> _hiddenLights = new();
+    private class HiddenSet
+    {
+        public Player Player;
+        public readonly List<Renderer> Renderers = new();
+        public readonly List<Light> Lights = new();
+    }
+
+    private readonly List<HiddenSet> _hidden = new();
 
     public void HideAll()
     {
-        if (_hiddenRenderers.Count > 0 || _hiddenLights.Count > 0) return;
+        if (_hidden.Count > 0) return;
 
         var gameWorld = Singleton<GameWorld>.Instance;
         if (gameWorld == null) return;
+
+        int totalRenderers = 0;
+        int totalLights = 0;
 
         var players = gameWorld.AllAlivePlayersList;
         for (int i = 0; i < players.Count; i++)
@@ -28,8 +39,10 @@ public class LivePlayerHider
             var player = players[i];
             if (player == null || player.IsYourPlayer || player.gameObject == null) continue;
 
-            HideRenderers(player.gameObject.GetComponentsInChildren<Renderer>(false));
-            HideLights(player.gameObject.GetComponentsInChildren<Light>(false));
+            var set = new HiddenSet { Player = player };
+
+            HideRenderers(set, player.gameObject.GetComponentsInChildren<Renderer>(false));
+            HideLights(set, player.gameObject.GetComponentsInChildren<Light>(false));
 
             // The weapon currently held in hands is a separate view object created by
             // the hands controller under the WeaponRoot bone — it is NOT any SlotView's
@@ -39,17 +52,15 @@ public class LivePlayerHider
             var weaponRoot = player.WeaponRoot?.Original;
             if (weaponRoot != null)
             {
-                HideRenderers(weaponRoot.GetComponentsInChildren<Renderer>(false));
-                HideLights(weaponRoot.GetComponentsInChildren<Light>(false));
+                HideRenderers(set, weaponRoot.GetComponentsInChildren<Renderer>(false));
+                HideLights(set, weaponRoot.GetComponentsInChildren<Light>(false));
             }
 
             // Equipment view models (weapon, chest rig, backpack, headwear, ...) are
             // pooled objects (AssetPoolObject) attached to a bone Transform per slot —
             // not guaranteed to be a descendant the sweep above reaches. PlayerBody.SlotViews
             // is the game's own authoritative list of every currently equipped view, each
-            // exposing its Renderers directly — hide those explicitly too. A flashlight is a
-            // UnityEngine.Light on the same view, not caught by hiding the mesh alone, so its
-            // beam is swept separately per slot.
+            // exposing its Renderers directly — hide those explicitly too.
             var slotViews = player.PlayerBody?.SlotViews;
             if (slotViews != null)
             {
@@ -57,17 +68,24 @@ public class LivePlayerHider
                 {
                     var model = slot?.Model;
                     if (model == null) continue;
-                    HideRenderers(slot.Renderers);
-                    HideLights(model.GetComponentsInChildren<Light>(false));
+                    HideRenderers(set, slot.Renderers);
+                    HideLights(set, model.GetComponentsInChildren<Light>(false));
                 }
+            }
+
+            if (set.Renderers.Count > 0 || set.Lights.Count > 0)
+            {
+                _hidden.Add(set);
+                totalRenderers += set.Renderers.Count;
+                totalLights += set.Lights.Count;
             }
         }
 
         Plugin.Instance.Logger.LogInfo(
-            $"[KillcamReplay] Hid {_hiddenRenderers.Count} renderers, {_hiddenLights.Count} lights of live players");
+            $"[KillcamReplay] Hid {totalRenderers} renderers, {totalLights} lights of {_hidden.Count} live players");
     }
 
-    private void HideRenderers(Renderer[] renderers)
+    private static void HideRenderers(HiddenSet set, Renderer[] renderers)
     {
         for (int j = 0; j < renderers.Length; j++)
         {
@@ -75,12 +93,12 @@ public class LivePlayerHider
             if (renderer != null && renderer.enabled)
             {
                 renderer.enabled = false;
-                _hiddenRenderers.Add(renderer);
+                set.Renderers.Add(renderer);
             }
         }
     }
 
-    private void HideLights(Light[] lights)
+    private static void HideLights(HiddenSet set, Light[] lights)
     {
         for (int j = 0; j < lights.Length; j++)
         {
@@ -88,27 +106,43 @@ public class LivePlayerHider
             if (light != null && light.enabled)
             {
                 light.enabled = false;
-                _hiddenLights.Add(light);
+                set.Lights.Add(light);
             }
         }
     }
 
     public void RestoreAll()
     {
-        for (int i = 0; i < _hiddenRenderers.Count; i++)
+        for (int i = 0; i < _hidden.Count; i++)
+            Restore(_hidden[i]);
+        _hidden.Clear();
+    }
+
+    // Used at the cut to the live tail: everyone reappears except the player whose
+    // eyes the camera is about to follow — his own model would clip into the view.
+    public void RestoreAllExcept(Player keepHidden)
+    {
+        for (int i = _hidden.Count - 1; i >= 0; i--)
         {
-            var renderer = _hiddenRenderers[i];
-            if (renderer != null) // Unity-null when the bot despawned meanwhile
+            if (_hidden[i].Player == keepHidden) continue;
+            Restore(_hidden[i]);
+            _hidden.RemoveAt(i);
+        }
+    }
+
+    private static void Restore(HiddenSet set)
+    {
+        for (int i = 0; i < set.Renderers.Count; i++)
+        {
+            var renderer = set.Renderers[i];
+            if (renderer != null) // Unity-null when the object despawned meanwhile
                 renderer.enabled = true;
         }
-        _hiddenRenderers.Clear();
-
-        for (int i = 0; i < _hiddenLights.Count; i++)
+        for (int i = 0; i < set.Lights.Count; i++)
         {
-            var light = _hiddenLights[i];
+            var light = set.Lights[i];
             if (light != null)
                 light.enabled = true;
         }
-        _hiddenLights.Clear();
     }
 }
