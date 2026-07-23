@@ -31,6 +31,18 @@ public class LivePlayerHider
             HideRenderers(player.gameObject.GetComponentsInChildren<Renderer>(false));
             HideLights(player.gameObject.GetComponentsInChildren<Light>(false));
 
+            // The weapon currently held in hands is a separate view object created by
+            // the hands controller under the WeaponRoot bone — it is NOT any SlotView's
+            // model (a slot suppresses its on-body model while its item is in hands),
+            // and empirically not a descendant of player.gameObject either. Weapon-mounted
+            // flashlights live here too, which is why the beam kept floating.
+            var weaponRoot = player.WeaponRoot?.Original;
+            if (weaponRoot != null)
+            {
+                HideRenderers(weaponRoot.GetComponentsInChildren<Renderer>(false));
+                HideLights(weaponRoot.GetComponentsInChildren<Light>(false));
+            }
+
             // Equipment view models (weapon, chest rig, backpack, headwear, ...) are
             // pooled objects (AssetPoolObject) attached to a bone Transform per slot —
             // not guaranteed to be a descendant the sweep above reaches. PlayerBody.SlotViews

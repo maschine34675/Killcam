@@ -143,7 +143,7 @@ public class GhostPuppet
             bool any = false;
             foreach (var c in components)
             {
-                if (c == null || !shouldRemove(c)) continue;
+                if (c == null || !shouldRemove(c) || IsRequiredBySibling(c)) continue;
                 try
                 {
                     Object.DestroyImmediate(c);
@@ -161,6 +161,56 @@ public class GhostPuppet
             if (!any) break;
         }
         return stripped;
+    }
+
+    // Unity refuses to DestroyImmediate a component while a sibling declares
+    // [RequireComponent] on its type — and that refusal does NOT throw, it only
+    // logs "Can't remove X because Y depends on it". The only way to keep the log
+    // clean is to never attempt a blocked removal: skip the component this pass,
+    // its dependents get removed first and free it up in a later pass. This also
+    // resolves script→script chains (e.g. the engine-bundled Meta XR spatial-audio
+    // scripts requiring each other) that stage ordering alone cannot.
+    private static readonly Dictionary<System.Type, System.Type[]> _requirementsCache = new();
+
+    private static bool IsRequiredBySibling(Component c)
+    {
+        var cType = c.GetType();
+        var siblings = c.GetComponents<Component>();
+        foreach (var sibling in siblings)
+        {
+            if (sibling == null || ReferenceEquals(sibling, c)) continue;
+            foreach (var required in GetRequirements(sibling.GetType()))
+            {
+                if (required.IsAssignableFrom(cType))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private static System.Type[] GetRequirements(System.Type type)
+    {
+        if (_requirementsCache.TryGetValue(type, out var cached))
+            return cached;
+
+        List<System.Type> result = null;
+        // walk base types manually — RequireComponent is not marked as inherited,
+        // but Unity enforces base-class requirements at runtime (e.g. CharacterJoint
+        // inherits Joint's Rigidbody requirement)
+        for (var t = type; t != null && t != typeof(Component); t = t.BaseType)
+        {
+            foreach (RequireComponent req in t.GetCustomAttributes(typeof(RequireComponent), false))
+            {
+                result ??= new List<System.Type>();
+                if (req.m_Type0 != null) result.Add(req.m_Type0);
+                if (req.m_Type1 != null) result.Add(req.m_Type1);
+                if (req.m_Type2 != null) result.Add(req.m_Type2);
+            }
+        }
+
+        var requirements = result != null ? result.ToArray() : System.Array.Empty<System.Type>();
+        _requirementsCache[type] = requirements;
+        return requirements;
     }
 
     public void Apply(float t)

@@ -38,6 +38,17 @@ Dieselben Harmony-Pitfalls wie in `C:\SPT\Development\KillAndDamageInfo\CLAUDE.m
 - **Pitch-Mapping bestätigt**: `Quaternion.Euler(rotation.y, rotation.x, 0)` aus
   `Player.Rotation` (x=Yaw, y=Pitch) stimmt mit der tatsächlichen Blickrichtung überein —
   in-game getestet, kein Invert nötig.
+- **`DestroyImmediate` wirft bei blockierter `[RequireComponent]`-Abhängigkeit KEINE
+  Exception**: Unity loggt nur intern „Can't remove X because Y depends on it" und no-opt
+  still — try/catch kann das weder erkennen noch verhindern. Blockierte Versuche gar nicht
+  erst unternehmen: vor jedem Löschversuch per Reflection prüfen, ob ein Geschwister-Component
+  den Typ per `[RequireComponent]` benötigt (Basisklassen manuell walken — Unity erzwingt
+  auch geerbte Anforderungen wie `CharacterJoint`→`Joint`→`Rigidbody`, das Attribut ist aber
+  nicht als vererbt markiert). Siehe `GhostPuppet.IsRequiredBySibling`.
+- **Waffe in der Hand ≠ SlotView**: `PlayerBody.SlotViews` deckt getragene Ausrüstung ab,
+  aber die Waffe in der Hand ist ein eigenes View-Objekt unter `Player.WeaponRoot.Original`
+  (und empirisch kein Nachfahre von `player.gameObject`). Beim Verstecken von Spielern beides
+  sweepen — inkl. `Light`-Komponenten (Taschenlampe sitzt an der Hand-Waffe).
 - **Koexistenz**: Death-Replay deaktiviert sich automatisch, wenn
   `com.local.killanddamageinfo` geladen ist (dessen Live-Killcam besitzt die Todessequenz).
 - Postfixes in Gameplay-Pfaden (OnDead, OnMakingShot) immer in try/catch.
