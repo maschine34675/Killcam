@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace KillcamReplay;
 
-[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.4.1")]
+[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.4.2")]
 public class Plugin : BaseUnityPlugin
 {
     public static Plugin Instance;

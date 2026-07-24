@@ -33,7 +33,7 @@ ausgeblendet), Fade zurück, dann folgt die Kamera für `LiveTailSeconds` (Stand
 **live den Augen des Killers** (`FollowKillerInTail`; Fallback: letzte Replay-Position,
 falls er inzwischen tot ist). Danach blendet das Replay selbst zu Schwarz ab und hält
 Schwarz, bis der re-invokte `LocalGame.Stop` seinen eigenen Blackscreen aufgezogen hat
-(erkannt über `DeferStopPatch.StopReinvokedAt` + 0,8s; Not-Timeout 4s) — die Corpse-Cam
+(erkannt über `DeferStopPatch.StopReinvokedAt` + 1,5s; Not-Timeout 5s) — die Corpse-Cam
 blitzt also nie mehr zwischen Replay-Ende und Raid-Ende-Übergang auf. Wurde `Stop` nicht
 deferred (z.B. weil eine Respawn-Mod den Tod abgefangen hat), wird die Kamera nach dem
 Tail direkt zurückgegeben — kein Schwarz-Halten, das sonst den Respawn-Prompt verdecken

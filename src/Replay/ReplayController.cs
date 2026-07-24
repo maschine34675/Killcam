@@ -56,6 +56,8 @@ public class ReplayController : MonoBehaviour
     private Camera _camera;
     private GUIStyle _labelStyle;
     private GUIStyle _shotStyle;
+    private GUIStyle _timeStyle;
+    private GUIStyle _liveStyle;
 
     public bool IsPlaying => _playing;
 
@@ -227,9 +229,11 @@ public class ReplayController : MonoBehaviour
                 break;
 
             case EndingPhase.HoldBlack:
+                // 1.5s after the re-invoke: the game's own black screen fades in and
+                // was empirically not fully opaque yet at 0.8s (brief corpse-cam flash)
                 float reinvokedAt = ReplayPatches.DeferStopPatch.StopReinvokedAt;
-                bool gameBlackUp = reinvokedAt > 0f && Time.time - reinvokedAt >= 0.8f;
-                if (gameBlackUp || _phaseClock >= 4f)
+                bool gameBlackUp = reinvokedAt > 0f && Time.time - reinvokedAt >= 1.5f;
+                if (gameBlackUp || _phaseClock >= 5f)
                 {
                     EndPlayback(gameBlackUp ? "handed off under black screen" : "black hold timeout");
                     return;
@@ -420,9 +424,27 @@ public class ReplayController : MonoBehaviour
 
             _shotStyle = new GUIStyle(_labelStyle) { fontSize = 16 };
             _shotStyle.normal.textColor = new Color(1f, 0.25f, 0.2f);
+
+            _timeStyle = new GUIStyle(_labelStyle) { fontSize = 16, fontStyle = FontStyle.Normal };
+            _timeStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+
+            _liveStyle = new GUIStyle(_labelStyle) { fontSize = 16 };
+            _liveStyle.normal.textColor = new Color(1f, 0.25f, 0.2f);
         }
 
         GUI.Label(new Rect(0, 20, Screen.width, 34), $"KILLCAM — {_killerName}", _labelStyle);
+
+        // video-player style position: seconds until the kill moment, then LIVE
+        if (_cutToLive)
+        {
+            GUI.Label(new Rect(0, 54, Screen.width, 24), "● LIVE", _liveStyle);
+        }
+        else
+        {
+            float rel = Mathf.Min(_startTime + _clock, _cameraPath.EndTime) - _cameraPath.EndTime;
+            if (rel > -0.05f) rel = 0f;
+            GUI.Label(new Rect(0, 54, Screen.width, 24), $"{rel:F1}s", _timeStyle);
+        }
 
         if (!_inEnding)
         {
@@ -431,7 +453,7 @@ public class ReplayController : MonoBehaviour
             {
                 if (Mathf.Abs(_shots[i] - t) < 0.15f)
                 {
-                    GUI.Label(new Rect(0, 56, Screen.width, 24), "● SCHUSS", _shotStyle);
+                    GUI.Label(new Rect(0, 78, Screen.width, 24), "● SCHUSS", _shotStyle);
                     break;
                 }
             }
