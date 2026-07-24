@@ -432,18 +432,19 @@ public class ReplayController : MonoBehaviour
             _liveStyle.normal.textColor = new Color(1f, 0.25f, 0.2f);
         }
 
-        GUI.Label(new Rect(0, 20, Screen.width, 34), $"KILLCAM — {_killerName}", _labelStyle);
+        float baseY = Screen.height * Plugin.HudTopFraction.Value;
+        GUI.Label(new Rect(0, baseY, Screen.width, 34), $"KILLCAM — {_killerName}", _labelStyle);
 
         // video-player style position: seconds until the kill moment, then LIVE
         if (_cutToLive)
         {
-            GUI.Label(new Rect(0, 54, Screen.width, 24), "● LIVE", _liveStyle);
+            GUI.Label(new Rect(0, baseY + 34, Screen.width, 24), "● LIVE", _liveStyle);
         }
         else
         {
             float rel = Mathf.Min(_startTime + _clock, _cameraPath.EndTime) - _cameraPath.EndTime;
             if (rel > -0.05f) rel = 0f;
-            GUI.Label(new Rect(0, 54, Screen.width, 24), $"{rel:F1}s", _timeStyle);
+            GUI.Label(new Rect(0, baseY + 34, Screen.width, 24), $"{rel:F1}s", _timeStyle);
         }
 
         if (!_inEnding)
@@ -453,7 +454,7 @@ public class ReplayController : MonoBehaviour
             {
                 if (Mathf.Abs(_shots[i] - t) < 0.15f)
                 {
-                    GUI.Label(new Rect(0, 78, Screen.width, 24), "● SHOT", _shotStyle);
+                    GUI.Label(new Rect(0, baseY + 58, Screen.width, 24), "● SHOT", _shotStyle);
                     break;
                 }
             }

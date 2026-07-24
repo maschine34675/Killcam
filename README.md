@@ -90,6 +90,7 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 | Replay.Duration | 5 s | Replay-Länge |
 | Replay.LiveTailSeconds | 2 s | Nach Replay-Ende noch live weiterzeigen (0 = aus) |
 | Replay.FollowKillerInTail | true | Im Live-Nachlauf dem Killer live folgen statt statisch zu verharren |
+| Replay.HudTopFraction | 0.30 | Vertikale Position des Killcam-HUD (Anteil der Bildschirmhöhe von oben) |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
 | Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
 | Replay.UseRealModelGhost | true | Echtes Charaktermodell statt Silhouette (Fallback automatisch) |

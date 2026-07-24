@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace KillcamReplay;
 
-[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.4.2")]
+[BepInPlugin("com.local.killcamreplay", "Killcam Replay", "0.4.3")]
 public class Plugin : BaseUnityPlugin
 {
     public static Plugin Instance;
@@ -25,6 +25,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<bool> UseRealModelGhost;
     public static ConfigEntry<bool> HideLiveBots;
     public static ConfigEntry<bool> InvertPitch;
+    public static ConfigEntry<float> HudTopFraction;
     public static ConfigEntry<KeyboardShortcut> DebugReplayKey;
 
     public static SnapshotRecorder Recorder;
@@ -61,6 +62,8 @@ public class Plugin : BaseUnityPlugin
             "Hide live bots during the replay (otherwise they walk through the shot)");
         InvertPitch = Config.Bind("Replay", "InvertPitch", false,
             "Invert vertical look direction in the replay (in case the camera tilts the wrong way)");
+        HudTopFraction = Config.Bind("Replay", "HudTopFraction", 0.30f,
+            new ConfigDescription("Vertical position of the killcam HUD as a fraction of screen height from the top (place it below/above the vanilla death panel)", new AcceptableValueRange<float>(0f, 0.9f)));
         DebugReplayKey = Config.Bind("Debug", "ReplayKey", new KeyboardShortcut(KeyCode.F9),
             "Play a replay of the nearest bot (for testing without dying)");
 
