@@ -23,6 +23,7 @@ public class GhostPuppet
     private readonly Player _sourcePlayer;
     private readonly List<Renderer> _hiddenSourceRenderers = new();
     private readonly List<Light> _hiddenSourceLights = new();
+    private Transform _weaponPivot;
     private int _cursor;
 
     public static GhostPuppet TryCreate(GameObject source, Player sourcePlayer, BoneWindow window)
@@ -89,61 +90,22 @@ public class GhostPuppet
     // expect backend context the item factory would provide), leaving the puppet
     // unarmed — and the weapon view (PlayerBones.WeaponRoot.Original) is not even a
     // descendant of the player: it lives in its own scene-level container
-    // ("weapon_..._container(Clone)") that the game aligns to the hand every frame.
+    // ("weapon_..._container(Clone)") that the game aligns to the hands every frame.
     // So the weapon is never part of the body clone at all. Instead, copy ONLY its
-    // meshes: plain new GameObjects with shared mesh + materials, no scripts, no
-    // physics, no Odin — parented to a mapped SKELETON bone of the puppet
-    // (Weapon_Root_Third, the bone third-person weapons are aligned to; RightPalm as
-    // fallback) at the relative pose the weapon currently has to that bone. The
-    // copies then simply ride the recorded hand animation.
+    // meshes (plain new GameObjects with shared mesh + materials, no scripts, no
+    // physics, no Odin) under a single pivot whose WORLD pose is played back from
+    // the recording each frame — the BoneRecorder tracks the weapon root's world
+    // pose alongside the skeleton. Capturing a bone-relative offset from the corpse
+    // instead proved unusable: the ragdoll pose makes that offset arbitrary.
     private void AttachWeaponMeshes()
     {
         try
         {
-            var bones = _sourcePlayer?.PlayerBones;
-            if (bones == null || _sourcePlayer.gameObject == null) return;
+            var weaponRoot = _sourcePlayer?.PlayerBones?.WeaponRoot?.Original;
+            if (weaponRoot == null || _window.WeaponPos == null) return;
 
-            var weaponRoot = bones.WeaponRoot?.Original;
-            if (weaponRoot == null) return;
-
-            Transform sourceRoot = _sourcePlayer.gameObject.transform;
-            Transform anchor = null;
-            string anchorName = null;
-            if (IsDescendantOf(bones.Weapon_Root_Third, sourceRoot))
-            {
-                anchor = bones.Weapon_Root_Third;
-                anchorName = "Weapon_Root_Third";
-            }
-            else if (IsDescendantOf(bones.RightPalm, sourceRoot))
-            {
-                anchor = bones.RightPalm;
-                anchorName = "RightPalm";
-            }
-            if (anchor == null)
-            {
-                Plugin.Instance.Logger.LogWarning("[KillcamReplay] Puppet weapon: no skeleton anchor bone found");
-                return;
-            }
-
-            string path = GetPath(anchor, sourceRoot);
-            var cloneBone = _cloneRoot.Find(path);
-            if (cloneBone == null)
-            {
-                Plugin.Instance.Logger.LogWarning($"[KillcamReplay] Puppet weapon: anchor path '{path}' not found in clone");
-                return;
-            }
-
-            // One pivot holding the whole weapon as a rigid unit, placed at the weapon
-            // root's anchor-relative pose. The capture happens against the third-person
-            // weapon bone while the recorded skeleton poses come from first-person play;
-            // the two conventions differ by a roll around the weapon's own axis —
-            // corrected here (tunable live via config in case some weapon needs a
-            // different angle).
             var pivot = new GameObject("PuppetWeapon").transform;
-            pivot.SetParent(cloneBone, false);
-            pivot.localPosition = anchor.InverseTransformPoint(weaponRoot.position);
-            pivot.localRotation = Quaternion.Inverse(anchor.rotation) * weaponRoot.rotation
-                * Quaternion.Euler(0f, 0f, Plugin.WeaponRollFixDegrees.Value);
+            pivot.SetParent(_holder.transform, false);
 
             int copied = 0;
             var sourceRenderers = weaponRoot.GetComponentsInChildren<MeshRenderer>(false);
@@ -168,26 +130,21 @@ public class GhostPuppet
                 copied++;
             }
 
+            if (copied == 0)
+            {
+                Object.Destroy(pivot.gameObject);
+                return;
+            }
+
+            _weaponPivot = pivot;
             int skinned = weaponRoot.GetComponentsInChildren<SkinnedMeshRenderer>(false).Length;
             Plugin.Instance.Logger.LogInfo(
-                $"[KillcamReplay] Puppet weapon: copied {copied} meshes onto {anchorName}" + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
+                $"[KillcamReplay] Puppet weapon: copied {copied} meshes, world-pose playback" + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
         }
         catch (System.Exception ex)
         {
             Plugin.Instance.Logger.LogError($"[KillcamReplay] Puppet weapon attach failed: {ex}");
         }
-    }
-
-    private static bool IsDescendantOf(Transform candidate, Transform root)
-    {
-        if (candidate == null) return false;
-        var current = candidate.parent;
-        while (current != null)
-        {
-            if (current == root) return true;
-            current = current.parent;
-        }
-        return false;
     }
 
     private static string GetPath(Transform target, Transform root)
@@ -379,6 +336,23 @@ public class GhostPuppet
             if (bone == null) continue;
             bone.localPosition = Vector3.Lerp(_window.BonePos[baseA + i], _window.BonePos[baseB + i], alpha);
             bone.localRotation = Quaternion.Slerp(_window.BoneRot[baseA + i], _window.BoneRot[baseB + i], alpha);
+        }
+
+        if (_weaponPivot != null && _window.WeaponPos != null)
+        {
+            bool valid = _window.WeaponValid[a] && _window.WeaponValid[b];
+            if (valid)
+            {
+                if (!_weaponPivot.gameObject.activeSelf)
+                    _weaponPivot.gameObject.SetActive(true);
+                _weaponPivot.SetPositionAndRotation(
+                    Vector3.Lerp(_window.WeaponPos[a], _window.WeaponPos[b], alpha),
+                    Quaternion.Slerp(_window.WeaponRot[a], _window.WeaponRot[b], alpha));
+            }
+            else if (_weaponPivot.gameObject.activeSelf)
+            {
+                _weaponPivot.gameObject.SetActive(false);
+            }
         }
     }
 

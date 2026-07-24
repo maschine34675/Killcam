@@ -16,6 +16,11 @@ public class BoneWindow
     public Quaternion[] BoneRot;
     public int BoneCount;
     public string[] Paths;
+    // world pose of the held weapon's view root per frame (the weapon view lives
+    // outside the player hierarchy, so it gets its own track)
+    public Vector3[] WeaponPos;
+    public Quaternion[] WeaponRot;
+    public bool[] WeaponValid;
 }
 
 // Records the full skeleton pose of the LOCAL player only — the replay ghost is
@@ -32,6 +37,9 @@ public class BoneRecorder
     private Quaternion[] _rootRot;
     private Vector3[] _bonePos;
     private Quaternion[] _boneRot;
+    private Vector3[] _weaponPos;
+    private Quaternion[] _weaponRot;
+    private bool[] _weaponValid;
     private int _head;
     private int _count;
     private int _capacity;
@@ -73,6 +81,22 @@ public class BoneRecorder
         _times[frame] = now;
         _rootPos[frame] = _root.position;
         _rootRot[frame] = _root.rotation;
+
+        // The weapon view is aligned to the hands by game code, not by parenting —
+        // record its world pose so the puppet can play it back exactly (capturing a
+        // hand-relative offset from the ragdolled corpse instead yields an arbitrary
+        // pose-dependent orientation).
+        var weaponRoot = mainPlayer.PlayerBones?.WeaponRoot?.Original;
+        if (weaponRoot != null)
+        {
+            _weaponPos[frame] = weaponRoot.position;
+            _weaponRot[frame] = weaponRoot.rotation;
+            _weaponValid[frame] = true;
+        }
+        else
+        {
+            _weaponValid[frame] = false;
+        }
 
         for (int i = 0; i < _boneCount; i++)
         {
@@ -120,6 +144,9 @@ public class BoneRecorder
         _rootRot = new Quaternion[_capacity];
         _bonePos = new Vector3[_capacity * _boneCount];
         _boneRot = new Quaternion[_capacity * _boneCount];
+        _weaponPos = new Vector3[_capacity];
+        _weaponRot = new Quaternion[_capacity];
+        _weaponValid = new bool[_capacity];
 
         float mb = _capacity * _boneCount * 28f / (1024f * 1024f);
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] BoneRecorder: tracking {_boneCount} transforms, buffer {mb:F1} MB");
@@ -160,7 +187,10 @@ public class BoneRecorder
             RootPos = new Vector3[frames.Count],
             RootRot = new Quaternion[frames.Count],
             BonePos = new Vector3[frames.Count * _boneCount],
-            BoneRot = new Quaternion[frames.Count * _boneCount]
+            BoneRot = new Quaternion[frames.Count * _boneCount],
+            WeaponPos = new Vector3[frames.Count],
+            WeaponRot = new Quaternion[frames.Count],
+            WeaponValid = new bool[frames.Count]
         };
 
         for (int i = 0; i < frames.Count; i++)
@@ -169,6 +199,9 @@ public class BoneRecorder
             window.Times[i] = _times[f];
             window.RootPos[i] = _rootPos[f];
             window.RootRot[i] = _rootRot[f];
+            window.WeaponPos[i] = _weaponPos[f];
+            window.WeaponRot[i] = _weaponRot[f];
+            window.WeaponValid[i] = _weaponValid[f];
             System.Array.Copy(_bonePos, f * _boneCount, window.BonePos, i * _boneCount, _boneCount);
             System.Array.Copy(_boneRot, f * _boneCount, window.BoneRot, i * _boneCount, _boneCount);
         }
