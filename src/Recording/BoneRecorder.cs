@@ -16,11 +16,18 @@ public class BoneWindow
     public Quaternion[] BoneRot;
     public int BoneCount;
     public string[] Paths;
-    // world pose of the held weapon's view root per frame (the weapon view lives
-    // outside the player hierarchy, so it gets its own track)
+    // world pose of the held weapon per frame (the weapon view lives outside the
+    // player hierarchy, so it gets its own track). Two candidate transforms are
+    // recorded because it is mode-dependent which one the game actually drives:
+    // WeaponRoot.Original (the view container's root) and Weapon_Root_Anim (the
+    // transform ShiftWeaponRoot actively sets during first-person play). The
+    // puppet picks whichever track actually moved during the window.
     public Vector3[] WeaponPos;
     public Quaternion[] WeaponRot;
     public bool[] WeaponValid;
+    public Vector3[] WeaponAnimPos;
+    public Quaternion[] WeaponAnimRot;
+    public bool[] WeaponAnimValid;
 }
 
 // Records the full skeleton pose of the LOCAL player only — the replay ghost is
@@ -40,6 +47,9 @@ public class BoneRecorder
     private Vector3[] _weaponPos;
     private Quaternion[] _weaponRot;
     private bool[] _weaponValid;
+    private Vector3[] _weaponAnimPos;
+    private Quaternion[] _weaponAnimRot;
+    private bool[] _weaponAnimValid;
     private int _head;
     private int _count;
     private int _capacity;
@@ -85,8 +95,10 @@ public class BoneRecorder
         // The weapon view is aligned to the hands by game code, not by parenting —
         // record its world pose so the puppet can play it back exactly (capturing a
         // hand-relative offset from the ragdolled corpse instead yields an arbitrary
-        // pose-dependent orientation).
-        var weaponRoot = mainPlayer.PlayerBones?.WeaponRoot?.Original;
+        // pose-dependent orientation). Both candidate transforms are tracked; the
+        // puppet later uses whichever actually moved.
+        var bones = mainPlayer.PlayerBones;
+        var weaponRoot = bones?.WeaponRoot?.Original;
         if (weaponRoot != null)
         {
             _weaponPos[frame] = weaponRoot.position;
@@ -96,6 +108,18 @@ public class BoneRecorder
         else
         {
             _weaponValid[frame] = false;
+        }
+
+        var animRoot = bones?.Weapon_Root_Anim;
+        if (animRoot != null)
+        {
+            _weaponAnimPos[frame] = animRoot.position;
+            _weaponAnimRot[frame] = animRoot.rotation;
+            _weaponAnimValid[frame] = true;
+        }
+        else
+        {
+            _weaponAnimValid[frame] = false;
         }
 
         for (int i = 0; i < _boneCount; i++)
@@ -147,6 +171,9 @@ public class BoneRecorder
         _weaponPos = new Vector3[_capacity];
         _weaponRot = new Quaternion[_capacity];
         _weaponValid = new bool[_capacity];
+        _weaponAnimPos = new Vector3[_capacity];
+        _weaponAnimRot = new Quaternion[_capacity];
+        _weaponAnimValid = new bool[_capacity];
 
         float mb = _capacity * _boneCount * 28f / (1024f * 1024f);
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] BoneRecorder: tracking {_boneCount} transforms, buffer {mb:F1} MB");
@@ -190,7 +217,10 @@ public class BoneRecorder
             BoneRot = new Quaternion[frames.Count * _boneCount],
             WeaponPos = new Vector3[frames.Count],
             WeaponRot = new Quaternion[frames.Count],
-            WeaponValid = new bool[frames.Count]
+            WeaponValid = new bool[frames.Count],
+            WeaponAnimPos = new Vector3[frames.Count],
+            WeaponAnimRot = new Quaternion[frames.Count],
+            WeaponAnimValid = new bool[frames.Count]
         };
 
         for (int i = 0; i < frames.Count; i++)
@@ -202,6 +232,9 @@ public class BoneRecorder
             window.WeaponPos[i] = _weaponPos[f];
             window.WeaponRot[i] = _weaponRot[f];
             window.WeaponValid[i] = _weaponValid[f];
+            window.WeaponAnimPos[i] = _weaponAnimPos[f];
+            window.WeaponAnimRot[i] = _weaponAnimRot[f];
+            window.WeaponAnimValid[i] = _weaponAnimValid[f];
             System.Array.Copy(_bonePos, f * _boneCount, window.BonePos, i * _boneCount, _boneCount);
             System.Array.Copy(_boneRot, f * _boneCount, window.BoneRot, i * _boneCount, _boneCount);
         }

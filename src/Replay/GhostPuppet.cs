@@ -24,6 +24,9 @@ public class GhostPuppet
     private readonly List<Renderer> _hiddenSourceRenderers = new();
     private readonly List<Light> _hiddenSourceLights = new();
     private Transform _weaponPivot;
+    private Vector3[] _weaponTrackPos;
+    private Quaternion[] _weaponTrackRot;
+    private bool[] _weaponTrackValid;
     private int _cursor;
 
     public static GhostPuppet TryCreate(GameObject source, Player sourcePlayer, BoneWindow window)
@@ -132,14 +135,26 @@ public class GhostPuppet
 
             if (copied == 0)
             {
+                Plugin.Instance.Logger.LogWarning("[KillcamReplay] Puppet weapon: no meshes found to copy");
                 Object.Destroy(pivot.gameObject);
                 return;
             }
 
+            // It is mode-dependent which transform the game actually drives (the view
+            // container root vs. Weapon_Root_Anim, which ShiftWeaponRoot sets during
+            // first-person play) — use whichever track actually moved in the window.
+            float spreadRoot = TrackSpread(_window.WeaponPos, _window.WeaponValid);
+            float spreadAnim = TrackSpread(_window.WeaponAnimPos, _window.WeaponAnimValid);
+            bool useAnim = spreadRoot < 0.05f && spreadAnim >= 0.05f;
+            _weaponTrackPos = useAnim ? _window.WeaponAnimPos : _window.WeaponPos;
+            _weaponTrackRot = useAnim ? _window.WeaponAnimRot : _window.WeaponRot;
+            _weaponTrackValid = useAnim ? _window.WeaponAnimValid : _window.WeaponValid;
+
             _weaponPivot = pivot;
             int skinned = weaponRoot.GetComponentsInChildren<SkinnedMeshRenderer>(false).Length;
             Plugin.Instance.Logger.LogInfo(
-                $"[KillcamReplay] Puppet weapon: copied {copied} meshes, world-pose playback" + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
+                $"[KillcamReplay] Puppet weapon: copied {copied} meshes; track spread root={spreadRoot:F2}m anim={spreadAnim:F2}m -> using {(useAnim ? "anim" : "root")}"
+                + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
         }
         catch (System.Exception ex)
         {
@@ -338,22 +353,42 @@ public class GhostPuppet
             bone.localRotation = Quaternion.Slerp(_window.BoneRot[baseA + i], _window.BoneRot[baseB + i], alpha);
         }
 
-        if (_weaponPivot != null && _window.WeaponPos != null)
+        if (_weaponPivot != null && _weaponTrackPos != null)
         {
-            bool valid = _window.WeaponValid[a] && _window.WeaponValid[b];
+            bool valid = _weaponTrackValid[a] && _weaponTrackValid[b];
             if (valid)
             {
                 if (!_weaponPivot.gameObject.activeSelf)
                     _weaponPivot.gameObject.SetActive(true);
                 _weaponPivot.SetPositionAndRotation(
-                    Vector3.Lerp(_window.WeaponPos[a], _window.WeaponPos[b], alpha),
-                    Quaternion.Slerp(_window.WeaponRot[a], _window.WeaponRot[b], alpha));
+                    Vector3.Lerp(_weaponTrackPos[a], _weaponTrackPos[b], alpha),
+                    Quaternion.Slerp(_weaponTrackRot[a], _weaponTrackRot[b], alpha));
             }
             else if (_weaponPivot.gameObject.activeSelf)
             {
                 _weaponPivot.gameObject.SetActive(false);
             }
         }
+    }
+
+    private static float TrackSpread(Vector3[] positions, bool[] valid)
+    {
+        if (positions == null || valid == null) return 0f;
+
+        int first = -1;
+        float maxSqr = 0f;
+        for (int i = 0; i < positions.Length; i++)
+        {
+            if (!valid[i]) continue;
+            if (first < 0)
+            {
+                first = i;
+                continue;
+            }
+            float sqr = (positions[i] - positions[first]).sqrMagnitude;
+            if (sqr > maxSqr) maxSqr = sqr;
+        }
+        return Mathf.Sqrt(maxSqr);
     }
 
     public void Destroy()
