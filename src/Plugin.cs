@@ -13,7 +13,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.5.1";
+    public const string PluginVersion = "0.5.2";
 
     public static Plugin Instance;
 
@@ -30,6 +30,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<bool> HideLiveBots;
     public static ConfigEntry<bool> InvertPitch;
     public static ConfigEntry<float> HudTopFraction;
+    public static ConfigEntry<float> WeaponRollFixDegrees;
     public static ConfigEntry<KeyboardShortcut> DebugReplayKey;
 
     public static SnapshotRecorder Recorder;
@@ -68,6 +69,8 @@ public class Plugin : BaseUnityPlugin
             "Invert vertical look direction in the replay (in case the camera tilts the wrong way)");
         HudTopFraction = Config.Bind("Replay", "HudTopFraction", 0.87f,
             new ConfigDescription("Vertical position of the killcam HUD as a fraction of screen height from the top (place it below/above the vanilla death panel)", new AcceptableValueRange<float>(0f, 0.9f)));
+        WeaponRollFixDegrees = Config.Bind("Replay", "WeaponRollFixDegrees", 180f,
+            new ConfigDescription("Roll correction for the puppet's weapon meshes in degrees (first/third person weapon bone conventions differ by 180)", new AcceptableValueRange<float>(-180f, 180f)));
         DebugReplayKey = Config.Bind("Debug", "ReplayKey", new KeyboardShortcut(KeyCode.F9),
             "Play a replay of the nearest bot (for testing without dying)");
 

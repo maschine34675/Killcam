@@ -133,6 +133,18 @@ public class GhostPuppet
                 return;
             }
 
+            // One pivot holding the whole weapon as a rigid unit, placed at the weapon
+            // root's anchor-relative pose. The capture happens against the third-person
+            // weapon bone while the recorded skeleton poses come from first-person play;
+            // the two conventions differ by a roll around the weapon's own axis —
+            // corrected here (tunable live via config in case some weapon needs a
+            // different angle).
+            var pivot = new GameObject("PuppetWeapon").transform;
+            pivot.SetParent(cloneBone, false);
+            pivot.localPosition = anchor.InverseTransformPoint(weaponRoot.position);
+            pivot.localRotation = Quaternion.Inverse(anchor.rotation) * weaponRoot.rotation
+                * Quaternion.Euler(0f, 0f, Plugin.WeaponRollFixDegrees.Value);
+
             int copied = 0;
             var sourceRenderers = weaponRoot.GetComponentsInChildren<MeshRenderer>(false);
             for (int i = 0; i < sourceRenderers.Length; i++)
@@ -144,9 +156,9 @@ public class GhostPuppet
 
                 var go = new GameObject("PuppetWeaponMesh");
                 var t = go.transform;
-                t.SetParent(cloneBone, false);
-                t.localPosition = anchor.InverseTransformPoint(renderer.transform.position);
-                t.localRotation = Quaternion.Inverse(anchor.rotation) * renderer.transform.rotation;
+                t.SetParent(pivot, false);
+                t.localPosition = weaponRoot.InverseTransformPoint(renderer.transform.position);
+                t.localRotation = Quaternion.Inverse(weaponRoot.rotation) * renderer.transform.rotation;
                 t.localScale = renderer.transform.lossyScale;
 
                 go.AddComponent<MeshFilter>().sharedMesh = meshFilter.sharedMesh;
