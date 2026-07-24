@@ -87,33 +87,50 @@ public class GhostPuppet
 
     // The held weapon's Odin-serialized item scripts throw during a raw clone (they
     // expect backend context the item factory would provide), leaving the puppet
-    // unarmed. Instead of cloning the weapon GameObject at all, copy ONLY its meshes:
-    // plain new GameObjects with shared mesh + materials, parented to the puppet's
-    // mapped weapon-root bone at the same relative pose. No scripts, no physics, no
-    // Odin — the meshes simply ride the recorded hand animation.
+    // unarmed — and the weapon view (PlayerBones.WeaponRoot.Original) is not even a
+    // descendant of the player: it lives in its own scene-level container
+    // ("weapon_..._container(Clone)") that the game aligns to the hand every frame.
+    // So the weapon is never part of the body clone at all. Instead, copy ONLY its
+    // meshes: plain new GameObjects with shared mesh + materials, no scripts, no
+    // physics, no Odin — parented to a mapped SKELETON bone of the puppet
+    // (Weapon_Root_Third, the bone third-person weapons are aligned to; RightPalm as
+    // fallback) at the relative pose the weapon currently has to that bone. The
+    // copies then simply ride the recorded hand animation.
     private void AttachWeaponMeshes()
     {
         try
         {
-            var weaponRoot = _sourcePlayer?.PlayerBones?.WeaponRoot?.Original;
-            if (weaponRoot == null || _sourcePlayer.gameObject == null) return;
+            var bones = _sourcePlayer?.PlayerBones;
+            if (bones == null || _sourcePlayer.gameObject == null) return;
 
-            string path = GetPath(weaponRoot, _sourcePlayer.gameObject.transform);
-            var cloneBone = _cloneRoot.Find(path);
-            if (cloneBone == null)
+            var weaponRoot = bones.WeaponRoot?.Original;
+            if (weaponRoot == null) return;
+
+            Transform sourceRoot = _sourcePlayer.gameObject.transform;
+            Transform anchor = null;
+            string anchorName = null;
+            if (IsDescendantOf(bones.Weapon_Root_Third, sourceRoot))
             {
-                Plugin.Instance.Logger.LogWarning($"[KillcamReplay] Puppet weapon: bone path '{path}' not found in clone");
+                anchor = bones.Weapon_Root_Third;
+                anchorName = "Weapon_Root_Third";
+            }
+            else if (IsDescendantOf(bones.RightPalm, sourceRoot))
+            {
+                anchor = bones.RightPalm;
+                anchorName = "RightPalm";
+            }
+            if (anchor == null)
+            {
+                Plugin.Instance.Logger.LogWarning("[KillcamReplay] Puppet weapon: no skeleton anchor bone found");
                 return;
             }
 
-            // drop whatever the raw clone produced under the weapon bone (broken or
-            // invisible weapon leftovers) so the mesh copies can't double up
-            foreach (var r in cloneBone.GetComponentsInChildren<Renderer>(true))
+            string path = GetPath(anchor, sourceRoot);
+            var cloneBone = _cloneRoot.Find(path);
+            if (cloneBone == null)
             {
-                if (r == null) continue;
-                var mf = r.GetComponent<MeshFilter>();
-                Object.DestroyImmediate(r);
-                if (mf != null) Object.DestroyImmediate(mf);
+                Plugin.Instance.Logger.LogWarning($"[KillcamReplay] Puppet weapon: anchor path '{path}' not found in clone");
+                return;
             }
 
             int copied = 0;
@@ -128,8 +145,8 @@ public class GhostPuppet
                 var go = new GameObject("PuppetWeaponMesh");
                 var t = go.transform;
                 t.SetParent(cloneBone, false);
-                t.localPosition = weaponRoot.InverseTransformPoint(renderer.transform.position);
-                t.localRotation = Quaternion.Inverse(weaponRoot.rotation) * renderer.transform.rotation;
+                t.localPosition = anchor.InverseTransformPoint(renderer.transform.position);
+                t.localRotation = Quaternion.Inverse(anchor.rotation) * renderer.transform.rotation;
                 t.localScale = renderer.transform.lossyScale;
 
                 go.AddComponent<MeshFilter>().sharedMesh = meshFilter.sharedMesh;
@@ -141,12 +158,24 @@ public class GhostPuppet
 
             int skinned = weaponRoot.GetComponentsInChildren<SkinnedMeshRenderer>(false).Length;
             Plugin.Instance.Logger.LogInfo(
-                $"[KillcamReplay] Puppet weapon: copied {copied} meshes" + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
+                $"[KillcamReplay] Puppet weapon: copied {copied} meshes onto {anchorName}" + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
         }
         catch (System.Exception ex)
         {
             Plugin.Instance.Logger.LogError($"[KillcamReplay] Puppet weapon attach failed: {ex}");
         }
+    }
+
+    private static bool IsDescendantOf(Transform candidate, Transform root)
+    {
+        if (candidate == null) return false;
+        var current = candidate.parent;
+        while (current != null)
+        {
+            if (current == root) return true;
+            current = current.parent;
+        }
+        return false;
     }
 
     private static string GetPath(Transform target, Transform root)
