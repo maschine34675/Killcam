@@ -42,27 +42,27 @@ public class Plugin : BaseUnityPlugin
         Instance = this;
 
         SampleRate = Config.Bind("Recording", "SampleRate", 20,
-            new ConfigDescription("Aufnahmerate in Hz", new AcceptableValueRange<int>(5, 60)));
+            new ConfigDescription("Recording rate in Hz", new AcceptableValueRange<int>(5, 60)));
         BufferSeconds = Config.Bind("Recording", "BufferSeconds", 15f,
-            new ConfigDescription("Länge des Ringpuffers in Sekunden", new AcceptableValueRange<float>(5f, 60f)));
+            new ConfigDescription("Ring buffer length in seconds", new AcceptableValueRange<float>(5f, 60f)));
         ReplayDuration = Config.Bind("Replay", "Duration", 5f,
-            new ConfigDescription("Replay-Länge in Sekunden", new AcceptableValueRange<float>(2f, 12f)));
+            new ConfigDescription("Replay length in seconds", new AcceptableValueRange<float>(2f, 12f)));
         LiveTailSeconds = Config.Bind("Replay", "LiveTailSeconds", 2f,
-            new ConfigDescription("Nach Replay-Ende noch so lange live weiterzeigen (Übergang wird kurz abgeblendet)", new AcceptableValueRange<float>(0f, 10f)));
+            new ConfigDescription("Keep showing the live view for this long after the replay ends (with a short fade transition)", new AcceptableValueRange<float>(0f, 10f)));
         FollowKillerInTail = Config.Bind("Replay", "FollowKillerInTail", true,
-            "Während des Live-Nachlaufs dem Killer live folgen statt an der letzten Position zu verharren");
+            "Follow the killer live during the live tail instead of staying at the last position");
         DeathReplay = Config.Bind("Replay", "DeathReplay", true,
-            "Replay beim eigenen Tod abspielen");
+            "Play the replay when you die");
         ShowVictimGhost = Config.Bind("Replay", "ShowVictimGhost", true,
-            "Eigene Silhouette (Ghost) im Replay anzeigen");
+            "Show your own silhouette (ghost) in the replay");
         UseRealModelGhost = Config.Bind("Replay", "UseRealModelGhost", true,
-            "Echtes Charaktermodell (Corpse-Klon mit aufgezeichneten Knochen-Posen) statt Silhouette; bei Fehlern automatischer Fallback auf die Silhouette");
+            "Use the real character model (corpse clone with recorded bone poses) instead of the silhouette; automatically falls back to the silhouette on errors");
         HideLiveBots = Config.Bind("Replay", "HideLiveBots", true,
-            "Lebende Bots während des Replays ausblenden (sie laufen sonst durchs Bild)");
+            "Hide live bots during the replay (otherwise they walk through the shot)");
         InvertPitch = Config.Bind("Replay", "InvertPitch", false,
-            "Vertikale Blickrichtung im Replay invertieren (falls die Kamera falsch herum kippt)");
+            "Invert vertical look direction in the replay (in case the camera tilts the wrong way)");
         DebugReplayKey = Config.Bind("Debug", "ReplayKey", new KeyboardShortcut(KeyCode.F9),
-            "Replay des nächstgelegenen Bots abspielen (zum Testen ohne zu sterben)");
+            "Play a replay of the nearest bot (for testing without dying)");
 
         Recorder = gameObject.AddComponent<SnapshotRecorder>();
         ReplayCtrl = gameObject.AddComponent<ReplayController>();

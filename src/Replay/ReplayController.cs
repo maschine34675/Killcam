@@ -453,7 +453,7 @@ public class ReplayController : MonoBehaviour
             {
                 if (Mathf.Abs(_shots[i] - t) < 0.15f)
                 {
-                    GUI.Label(new Rect(0, 78, Screen.width, 24), "● SCHUSS", _shotStyle);
+                    GUI.Label(new Rect(0, 78, Screen.width, 24), "● SHOT", _shotStyle);
                     break;
                 }
             }
