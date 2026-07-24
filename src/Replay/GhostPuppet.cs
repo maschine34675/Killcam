@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using EFT;
 using KillcamReplay.Recording;
 using UnityEngine;
 
@@ -19,14 +20,16 @@ public class GhostPuppet
     private readonly Transform[] _mapped;
     private readonly BoneWindow _window;
     private readonly GameObject _source;
+    private readonly Player _sourcePlayer;
     private readonly List<Renderer> _hiddenSourceRenderers = new();
+    private readonly List<Light> _hiddenSourceLights = new();
     private int _cursor;
 
-    public static GhostPuppet TryCreate(GameObject source, BoneWindow window)
+    public static GhostPuppet TryCreate(GameObject source, Player sourcePlayer, BoneWindow window)
     {
         try
         {
-            var puppet = new GhostPuppet(source, window);
+            var puppet = new GhostPuppet(source, sourcePlayer, window);
             return puppet;
         }
         catch (System.Exception ex)
@@ -36,10 +39,11 @@ public class GhostPuppet
         }
     }
 
-    private GhostPuppet(GameObject source, BoneWindow window)
+    private GhostPuppet(GameObject source, Player sourcePlayer, BoneWindow window)
     {
         _window = window;
         _source = source;
+        _sourcePlayer = sourcePlayer;
 
         _holder = new GameObject("KillcamReplayPuppet");
         _holder.SetActive(false);
@@ -69,6 +73,8 @@ public class GhostPuppet
         }
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Puppet: mapped {found}/{window.Paths.Length} bones");
 
+        AttachWeaponMeshes();
+
         Apply(window.Times[0]);
         _holder.SetActive(true);
 
@@ -79,10 +85,105 @@ public class GhostPuppet
         HideSourceRenderers();
     }
 
+    // The held weapon's Odin-serialized item scripts throw during a raw clone (they
+    // expect backend context the item factory would provide), leaving the puppet
+    // unarmed. Instead of cloning the weapon GameObject at all, copy ONLY its meshes:
+    // plain new GameObjects with shared mesh + materials, parented to the puppet's
+    // mapped weapon-root bone at the same relative pose. No scripts, no physics, no
+    // Odin — the meshes simply ride the recorded hand animation.
+    private void AttachWeaponMeshes()
+    {
+        try
+        {
+            var weaponRoot = _sourcePlayer?.PlayerBones?.WeaponRoot?.Original;
+            if (weaponRoot == null || _sourcePlayer.gameObject == null) return;
+
+            string path = GetPath(weaponRoot, _sourcePlayer.gameObject.transform);
+            var cloneBone = _cloneRoot.Find(path);
+            if (cloneBone == null)
+            {
+                Plugin.Instance.Logger.LogWarning($"[KillcamReplay] Puppet weapon: bone path '{path}' not found in clone");
+                return;
+            }
+
+            // drop whatever the raw clone produced under the weapon bone (broken or
+            // invisible weapon leftovers) so the mesh copies can't double up
+            foreach (var r in cloneBone.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                var mf = r.GetComponent<MeshFilter>();
+                Object.DestroyImmediate(r);
+                if (mf != null) Object.DestroyImmediate(mf);
+            }
+
+            int copied = 0;
+            var sourceRenderers = weaponRoot.GetComponentsInChildren<MeshRenderer>(false);
+            for (int i = 0; i < sourceRenderers.Length; i++)
+            {
+                var renderer = sourceRenderers[i];
+                if (renderer == null || !renderer.enabled) continue;
+                var meshFilter = renderer.GetComponent<MeshFilter>();
+                if (meshFilter == null || meshFilter.sharedMesh == null) continue;
+
+                var go = new GameObject("PuppetWeaponMesh");
+                var t = go.transform;
+                t.SetParent(cloneBone, false);
+                t.localPosition = weaponRoot.InverseTransformPoint(renderer.transform.position);
+                t.localRotation = Quaternion.Inverse(weaponRoot.rotation) * renderer.transform.rotation;
+                t.localScale = renderer.transform.lossyScale;
+
+                go.AddComponent<MeshFilter>().sharedMesh = meshFilter.sharedMesh;
+                var copy = go.AddComponent<MeshRenderer>();
+                copy.sharedMaterials = renderer.sharedMaterials;
+                copy.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                copied++;
+            }
+
+            int skinned = weaponRoot.GetComponentsInChildren<SkinnedMeshRenderer>(false).Length;
+            Plugin.Instance.Logger.LogInfo(
+                $"[KillcamReplay] Puppet weapon: copied {copied} meshes" + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
+        }
+        catch (System.Exception ex)
+        {
+            Plugin.Instance.Logger.LogError($"[KillcamReplay] Puppet weapon attach failed: {ex}");
+        }
+    }
+
+    private static string GetPath(Transform target, Transform root)
+    {
+        var sb = new System.Text.StringBuilder(target.name);
+        var current = target.parent;
+        while (current != null && current != root)
+        {
+            sb.Insert(0, "/").Insert(0, current.name);
+            current = current.parent;
+        }
+        return sb.ToString();
+    }
+
     private void HideSourceRenderers()
     {
         if (_source == null) return;
-        var renderers = _source.GetComponentsInChildren<Renderer>(false);
+        HideRenderers(_source.GetComponentsInChildren<Renderer>(false));
+
+        // the weapon view can live outside the source hierarchy (see LivePlayerHider)
+        var weaponRoot = _sourcePlayer?.PlayerBones?.WeaponRoot?.Original;
+        if (weaponRoot != null)
+        {
+            HideRenderers(weaponRoot.GetComponentsInChildren<Renderer>(false));
+            foreach (var light in weaponRoot.GetComponentsInChildren<Light>(false))
+            {
+                if (light != null && light.enabled)
+                {
+                    light.enabled = false;
+                    _hiddenSourceLights.Add(light);
+                }
+            }
+        }
+    }
+
+    private void HideRenderers(Renderer[] renderers)
+    {
         for (int i = 0; i < renderers.Length; i++)
         {
             var renderer = renderers[i];
@@ -249,6 +350,14 @@ public class GhostPuppet
                 renderer.enabled = true;
         }
         _hiddenSourceRenderers.Clear();
+
+        for (int i = 0; i < _hiddenSourceLights.Count; i++)
+        {
+            var light = _hiddenSourceLights[i];
+            if (light != null)
+                light.enabled = true;
+        }
+        _hiddenSourceLights.Clear();
 
         if (_holder != null)
             Object.Destroy(_holder);

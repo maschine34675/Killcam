@@ -1,4 +1,7 @@
-# KillcamReplay (Prototyp)
+# KillcamReplay
+
+GUID `com.maschine.KillcamReplay`, Assembly `maschine-KillcamReplay` — Namensschema wie
+[EasyMounting](https://github.com/maschine34675/EasyMounting).
 
 Echte Killcam für SPT: Beim Tod wird die letzte Aktion **aus der Sicht des Killers** abgespielt —
 kein Live-Blick auf den Killer (wie in KillAndDamageInfo), sondern ein Replay der aufgezeichneten
@@ -116,17 +119,16 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
   Die eigene Leiche/der Live-Körper
   (Puppet-Quelle) wird ebenfalls ausgeblendet, sobald der Klon steht. Weitere Akteure als
   Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
-- **Kein Waffenmodell/Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker
-  („● SCHUSS") angezeigt.
+- **Kein Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker angezeigt.
 - **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
   KillAndDamageInfo-Killcam).
-- **Waffe am Puppet nicht sichtbar**: Beim Klonen der Leiche wirft die Odin/Sirenix-
-  Deserialisierung des Waffen-Items (`Weapon.OnAfterDeserialize`) eine NullReferenceException
-  — das Item erwartet Backend-/Template-Kontext, den ein roher `Object.Instantiate` außerhalb
-  der normalen Item-Factory nicht mitbringt. Passiert intern in Unitys Deserialisierung, wird
-  nicht an uns durchgereicht (kein Crash), das Waffen-Mesh bleibt aber unsichtbar. Ein
-  belastbarer Fix (z.B. nur das Waffen-Mesh ohne Item-Logik separat an die gemappte Hand-Bone
-  hängen) ist ein eigenes, tieferes Stück Arbeit — aktuell nicht umgesetzt.
+- **Waffe am Puppet = reine Mesh-Kopie**: Die Odin/Sirenix-Deserialisierung des Waffen-Items
+  wirft beim rohen Klonen eine (intern gefangene) NullReferenceException und lässt das
+  Waffen-Mesh leer. Deshalb wird die Waffe gar nicht mitgeklont, sondern ihre Meshes werden
+  einzeln kopiert (`AttachWeaponMeshes`: neue GameObjects mit sharedMesh + sharedMaterials,
+  ohne jegliche Scripts) und an den gemappten WeaponRoot-Bone des Puppets gehängt — sie
+  reiten auf der aufgezeichneten Hand-Animation. Skinned-Meshes (z.B. Gurte) werden
+  übersprungen; bewegliche Waffenteile (Bolzen etc.) sind in der Kopie statisch.
 - **Koexistenz mit KillAndDamageInfo:** Dessen Live-Killcam besitzt ebenfalls die Todessequenz
   (deferred Stop + Kamera-Übernahme). Ist die Mod geladen, deaktiviert sich das Death-Replay
   automatisch (Log-Warnung); das F9-Debug-Replay funktioniert weiterhin. Zum Testen des

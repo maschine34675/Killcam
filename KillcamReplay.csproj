@@ -4,8 +4,9 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <AssemblyName>KillcamReplay</AssemblyName>
-    <Description>Prototype: replay killcam from the killer's point of view</Description>
+    <AssemblyName>maschine-KillcamReplay</AssemblyName>
+    <Company>https://github.com/maschine34675/KillcamReplay</Company>
+    <Description>Replay killcam from the killer's point of view</Description>
     <SPTModType>Client</SPTModType>
     <LangVersion>latest</LangVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

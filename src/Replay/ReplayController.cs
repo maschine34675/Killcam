@@ -75,7 +75,7 @@ public class ReplayController : MonoBehaviour
     }
 
     private void Play(Snapshot[] killerPath, Snapshot[] victimPath, BoneWindow boneWindow,
-        GameObject puppetSource, List<float> shots, string killerName, bool withLiveTail)
+        GameObject puppetSource, Player puppetSourcePlayer, List<float> shots, string killerName, bool withLiveTail)
     {
         _cameraPath = new PathCursor(killerPath);
         _victimPath = victimPath != null && victimPath.Length >= 2 && Plugin.ShowVictimGhost.Value
@@ -101,7 +101,7 @@ public class ReplayController : MonoBehaviour
             if (Plugin.ShowVictimGhost.Value)
             {
                 if (Plugin.UseRealModelGhost.Value && boneWindow != null && puppetSource != null)
-                    _puppet = GhostPuppet.TryCreate(puppetSource, boneWindow);
+                    _puppet = GhostPuppet.TryCreate(puppetSource, puppetSourcePlayer, boneWindow);
 
                 if (_puppet == null && _victimPath != null)
                     _ghost = new ReplayGhost();
@@ -338,7 +338,7 @@ public class ReplayController : MonoBehaviour
             puppetSource = corpse != null ? corpse.gameObject : deadPlayer.gameObject;
         }
 
-        Play(killerPath, victimPath, boneWindow, puppetSource, shots, killerName, withLiveTail: true);
+        Play(killerPath, victimPath, boneWindow, puppetSource, deadPlayer, shots, killerName, withLiveTail: true);
         while (_playing)
             yield return null;
 
@@ -393,15 +393,15 @@ public class ReplayController : MonoBehaviour
             victimPath = mainTrack.ExtractWindow(from, now);
         var boneWindow = Plugin.Recorder.Bones.ExtractWindow(from, now);
 
-        StartCoroutine(RunDebugReplay(main.gameObject, path, victimPath, boneWindow, shots, nearest.Profile?.Nickname ?? "Bot"));
+        StartCoroutine(RunDebugReplay(main, path, victimPath, boneWindow, shots, nearest.Profile?.Nickname ?? "Bot"));
     }
 
-    private IEnumerator RunDebugReplay(GameObject puppetSource, Snapshot[] path, Snapshot[] victimPath,
+    private IEnumerator RunDebugReplay(Player main, Snapshot[] path, Snapshot[] victimPath,
         BoneWindow boneWindow, List<float> shots, string name)
     {
         // No live tail on the debug replay: the player is alive and holding their
         // view frozen for extra seconds would get them killed for a debug feature.
-        Play(path, victimPath, boneWindow, puppetSource, shots, name, withLiveTail: false);
+        Play(path, victimPath, boneWindow, main.gameObject, main, shots, name, withLiveTail: false);
         while (_playing)
             yield return null;
         // Nothing to restore — the player's camera controller was never touched and
