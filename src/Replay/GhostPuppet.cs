@@ -27,6 +27,7 @@ public class GhostPuppet
     private Vector3[] _weaponTrackPos;
     private Quaternion[] _weaponTrackRot;
     private bool[] _weaponTrackValid;
+    private float _muzzleLocalZ = 0.5f;
     private int _cursor;
 
     public static GhostPuppet TryCreate(GameObject source, Player sourcePlayer, BoneWindow window)
@@ -131,6 +132,12 @@ public class GhostPuppet
                 copy.sharedMaterials = renderer.sharedMaterials;
                 copy.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
                 copied++;
+
+                // rough muzzle estimate: furthest forward extent of any weapon part
+                float partMaxZ = t.localPosition.z
+                    + (meshFilter.sharedMesh.bounds.center.z + meshFilter.sharedMesh.bounds.extents.z) * t.localScale.z;
+                if (partMaxZ > _muzzleLocalZ)
+                    _muzzleLocalZ = partMaxZ;
             }
 
             if (copied == 0)
@@ -369,6 +376,15 @@ public class GhostPuppet
                 _weaponPivot.gameObject.SetActive(false);
             }
         }
+    }
+
+    // World position of the puppet weapon's (estimated) muzzle, for shot flashes.
+    public bool TryGetMuzzle(out Vector3 position)
+    {
+        position = default;
+        if (_weaponPivot == null || !_weaponPivot.gameObject.activeSelf) return false;
+        position = _weaponPivot.TransformPoint(new Vector3(0f, 0f, _muzzleLocalZ));
+        return true;
     }
 
     private static float TrackSpread(Vector3[] positions, bool[] valid)

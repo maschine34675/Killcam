@@ -44,6 +44,9 @@ public class ReplayController : MonoBehaviour
     }
 
     private List<float> _shots;
+    private List<float> _victimShots;
+    private ShotFlash _killerFlash;
+    private ShotFlash _ghostFlash;
     private float _clock;
     private float _startTime;
     private bool _playing;
@@ -75,13 +78,15 @@ public class ReplayController : MonoBehaviour
     }
 
     private void Play(Snapshot[] killerPath, Snapshot[] victimPath, BoneWindow boneWindow,
-        GameObject puppetSource, Player puppetSourcePlayer, List<float> shots, string killerName, bool withLiveTail)
+        GameObject puppetSource, Player puppetSourcePlayer, List<float> shots, List<float> victimShots,
+        string killerName, bool withLiveTail)
     {
         _cameraPath = new PathCursor(killerPath);
         _victimPath = victimPath != null && victimPath.Length >= 2 && Plugin.ShowVictimGhost.Value
             ? new PathCursor(victimPath)
             : null;
         _shots = shots;
+        _victimShots = victimShots;
         _killerName = killerName;
         _clock = 0f;
         _withLiveTail = withLiveTail;
@@ -110,6 +115,12 @@ public class ReplayController : MonoBehaviour
             if (Plugin.HideLiveBots.Value)
                 _hider.HideAll();
 
+            if (Plugin.ShowMuzzleFlashes.Value)
+            {
+                _killerFlash = new ShotFlash();
+                _ghostFlash = new ShotFlash();
+            }
+
             Application.onBeforeRender -= ApplyCurrentPose;
             Application.onBeforeRender += ApplyCurrentPose;
         }
@@ -125,6 +136,10 @@ public class ReplayController : MonoBehaviour
         _ghost = null;
         _puppet?.Destroy();
         _puppet = null;
+        _killerFlash?.Destroy();
+        _killerFlash = null;
+        _ghostFlash?.Destroy();
+        _ghostFlash = null;
         _hider.RestoreAll();
         Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Playback end after {_clock:F2}s: {reason}");
     }
@@ -293,6 +308,61 @@ public class ReplayController : MonoBehaviour
                 victimSnap.Pitch = -victimSnap.Pitch;
             _ghost.UpdatePose(victimSnap);
         }
+
+        UpdateShotFlashes(t);
+    }
+
+    // Brief 3D flashes at recorded shot times: the killer's shots light up just in
+    // front of the camera (his eyes ARE the camera, his weapon isn't rendered), the
+    // victim's own shots flash at the puppet weapon's estimated muzzle.
+    private void UpdateShotFlashes(float t)
+    {
+        if (_killerFlash == null) return;
+
+        if (_inEnding)
+        {
+            _killerFlash.Hide();
+            _ghostFlash.Hide();
+            return;
+        }
+
+        if (AnyShotActive(_shots, t))
+        {
+            var tr = _camera.transform;
+            _killerFlash.ShowAt(tr.position + tr.forward * 0.45f - tr.up * 0.12f);
+        }
+        else
+        {
+            _killerFlash.Hide();
+        }
+
+        bool ghostShot = AnyShotActive(_victimShots, t);
+        if (ghostShot && _puppet != null && _puppet.TryGetMuzzle(out var muzzle))
+        {
+            _ghostFlash.ShowAt(muzzle);
+        }
+        else if (ghostShot && _ghost != null && _victimPath != null)
+        {
+            var s = _victimPath.Sample(t);
+            float ghostPitch = Plugin.InvertPitch.Value ? -s.Pitch : s.Pitch;
+            var viewRot = Quaternion.Euler(ghostPitch, s.Yaw, 0f);
+            _ghostFlash.ShowAt(s.CamPos + viewRot * Vector3.forward * 0.6f);
+        }
+        else
+        {
+            _ghostFlash.Hide();
+        }
+    }
+
+    private static bool AnyShotActive(List<float> shots, float t)
+    {
+        if (shots == null) return false;
+        for (int i = 0; i < shots.Count; i++)
+        {
+            float sinceShot = t - shots[i];
+            if (sinceShot >= 0f && sinceShot < 0.07f) return true;
+        }
+        return false;
     }
 
     private bool TryGetLiveKillerPose(out Vector3 pos, out Quaternion rot)
@@ -320,11 +390,13 @@ public class ReplayController : MonoBehaviour
         Application.onBeforeRender -= ApplyCurrentPose;
         _ghost?.Destroy();
         _puppet?.Destroy();
+        _killerFlash?.Destroy();
+        _ghostFlash?.Destroy();
         _hider.RestoreAll();
     }
 
     public IEnumerator RunDeathReplay(Player deadPlayer, Snapshot[] killerPath, Snapshot[] victimPath,
-        BoneWindow boneWindow, List<float> shots, string killerName)
+        BoneWindow boneWindow, List<float> shots, List<float> victimShots, string killerName)
     {
         yield return new WaitForSeconds(LeadIn);
 
@@ -338,7 +410,7 @@ public class ReplayController : MonoBehaviour
             puppetSource = corpse != null ? corpse.gameObject : deadPlayer.gameObject;
         }
 
-        Play(killerPath, victimPath, boneWindow, puppetSource, deadPlayer, shots, killerName, withLiveTail: true);
+        Play(killerPath, victimPath, boneWindow, puppetSource, deadPlayer, shots, victimShots, killerName, withLiveTail: true);
         while (_playing)
             yield return null;
 
@@ -389,19 +461,23 @@ public class ReplayController : MonoBehaviour
         // press F9 and watch yourself through its eyes. The live body is the puppet
         // source here (no corpse exists); its own head stays hidden (FPS mode).
         Snapshot[] victimPath = null;
+        List<float> victimShots = null;
         if (Plugin.Recorder.TryGetTrack(main, out var mainTrack))
+        {
             victimPath = mainTrack.ExtractWindow(from, now);
+            victimShots = mainTrack.ExtractShots(from, now);
+        }
         var boneWindow = Plugin.Recorder.Bones.ExtractWindow(from, now);
 
-        StartCoroutine(RunDebugReplay(main, path, victimPath, boneWindow, shots, nearest.Profile?.Nickname ?? "Bot"));
+        StartCoroutine(RunDebugReplay(main, path, victimPath, boneWindow, shots, victimShots, nearest.Profile?.Nickname ?? "Bot"));
     }
 
     private IEnumerator RunDebugReplay(Player main, Snapshot[] path, Snapshot[] victimPath,
-        BoneWindow boneWindow, List<float> shots, string name)
+        BoneWindow boneWindow, List<float> shots, List<float> victimShots, string name)
     {
         // No live tail on the debug replay: the player is alive and holding their
         // view frozen for extra seconds would get them killed for a debug feature.
-        Play(path, victimPath, boneWindow, main.gameObject, main, shots, name, withLiveTail: false);
+        Play(path, victimPath, boneWindow, main.gameObject, main, shots, victimShots, name, withLiveTail: false);
         while (_playing)
             yield return null;
         // Nothing to restore — the player's camera controller was never touched and

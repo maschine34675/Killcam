@@ -93,7 +93,8 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 | Replay.Duration | 5 s | Replay-Länge |
 | Replay.LiveTailSeconds | 2 s | Nach Replay-Ende noch live weiterzeigen (0 = aus) |
 | Replay.FollowKillerInTail | true | Im Live-Nachlauf dem Killer live folgen statt statisch zu verharren |
-| Replay.HudTopFraction | 0.30 | Vertikale Position des Killcam-HUD (Anteil der Bildschirmhöhe von oben) |
+| Replay.HudTopFraction | 0.87 | Vertikale Position des Killcam-HUD (Anteil der Bildschirmhöhe von oben) |
+| Replay.ShowMuzzleFlashes | true | 3D-Mündungsfeuer an aufgezeichneten Schuss-Zeitpunkten |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
 | Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
 | Replay.UseRealModelGhost | true | Echtes Charaktermodell statt Silhouette (Fallback automatisch) |
@@ -119,7 +120,11 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
   Die eigene Leiche/der Live-Körper
   (Puppet-Quelle) wird ebenfalls ausgeblendet, sobald der Klon steht. Weitere Akteure als
   Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
-- **Kein Mündungsfeuer im Replay** — Schüsse werden nur als Overlay-Marker angezeigt.
+- **Mündungsfeuer = Näherung** — an aufgezeichneten Schuss-Zeitpunkten erscheint für ~70ms
+  ein Punktlicht + Glow-Blob (`ShotFlash`): Killer-Schüsse knapp vor der Kamera (seine Augen
+  SIND die Kamera, seine Waffe wird nicht gerendert), eigene Schüsse an der geschätzten
+  Mündung der Puppet-Waffe (weitester +Z-Extent der kopierten Meshes). Kein Partikeleffekt,
+  kein Sound. Abschaltbar via `ShowMuzzleFlashes`.
 - **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
   KillAndDamageInfo-Killcam).
 - **Waffe am Puppet = reine Mesh-Kopie**: Die Odin/Sirenix-Deserialisierung des Waffen-Items
