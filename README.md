@@ -11,9 +11,12 @@ Blickrichtung und Position der letzten Sekunden vor dem Kill.
 
 **Aufzeichnung (während des Raids):**
 Ein `SnapshotRecorder` sampelt mit fester Rate (Standard 20 Hz) für jeden lebenden Spieler/Bot
-Kameraposition (`Player.CameraPosition`), Blickrichtung (`Player.Rotation`, Yaw/Pitch) und
-Körperhaltung (`PoseLevel`, `IsInPronePose`) in einen Ringpuffer (Standard 15 s). Schüsse
-werden über einen Postfix auf `Player.OnMakingShot` mit Zeitstempel markiert.
+Kameraposition (`Player.CameraPosition`), Blickrichtung (`Player.Rotation`, Yaw/Pitch),
+Körperhaltung (`PoseLevel`, `IsInPronePose`) und die Weltpose der gehaltenen Waffe
+(`PlayerBones.WeaponRoot.Original`) in einen Ringpuffer (Standard 15 s). Schüsse werden über
+einen Postfix auf `Player.OnMakingShot` mit Zeitstempel markiert. Im Replay fährt eine
+script-freie Mesh-Kopie der Killer-Waffe (`WeaponGhost`) ihre aufgezeichnete Spur vor der
+Kamera ab — man sieht, womit und wohin er zielt; der Mündungsblitz sitzt an ihrer Mündung.
 
 **Replay (beim Tod):**
 `Player.OnDead` liefert den Killer (`LastAggressor`). Aus dessen Ringpuffer wird das Fenster
@@ -95,6 +98,7 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 | Replay.FollowKillerInTail | true | Im Live-Nachlauf dem Killer live folgen statt statisch zu verharren |
 | Replay.HudTopFraction | 0.87 | Vertikale Position des Killcam-HUD (Anteil der Bildschirmhöhe von oben) |
 | Replay.ShowMuzzleFlashes | true | 3D-Mündungsfeuer an aufgezeichneten Schuss-Zeitpunkten |
+| Replay.ShowKillerWeapon | true | Mesh-Kopie der Killer-Waffe fährt ihre aufgezeichnete Spur vor der Kamera ab |
 | Replay.DeathReplay | true | Replay beim eigenen Tod |
 | Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
 | Replay.UseRealModelGhost | true | Echtes Charaktermodell statt Silhouette (Fallback automatisch) |

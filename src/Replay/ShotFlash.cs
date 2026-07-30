@@ -12,7 +12,7 @@ public class ShotFlash
 
     private readonly GameObject _root;
 
-    public ShotFlash(float blobWidth = 0.06f, float blobLength = 0.22f)
+    public ShotFlash(float blobWidth = 0.06f, float blobLength = 0.33f)
     {
         _root = new GameObject("KillcamReplayShotFlash");
 

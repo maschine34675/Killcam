@@ -38,7 +38,10 @@ public class PathCursor
             Yaw = Mathf.LerpAngle(a.Yaw, b.Yaw, alpha),
             Pitch = Mathf.LerpAngle(a.Pitch, b.Pitch, alpha),
             PoseLevel = Mathf.Lerp(a.PoseLevel, b.PoseLevel, alpha),
-            Prone = alpha < 0.5f ? a.Prone : b.Prone
+            Prone = alpha < 0.5f ? a.Prone : b.Prone,
+            WeaponPos = Vector3.Lerp(a.WeaponPos, b.WeaponPos, alpha),
+            WeaponRot = Quaternion.Slerp(a.WeaponRot, b.WeaponRot, alpha),
+            WeaponValid = a.WeaponValid && b.WeaponValid
         };
     }
 }

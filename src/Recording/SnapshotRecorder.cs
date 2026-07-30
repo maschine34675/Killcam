@@ -13,6 +13,11 @@ public struct Snapshot
     public float Pitch;
     public float PoseLevel; // 0 = crouched, 1 = standing
     public bool Prone;
+    // world pose of the held weapon's view root (used to show the killer's weapon
+    // riding its recorded path during the replay)
+    public Vector3 WeaponPos;
+    public Quaternion WeaponRot;
+    public bool WeaponValid;
 }
 
 // Fixed-size ring buffer per player. Preallocated once on first sighting;
@@ -157,6 +162,7 @@ public class SnapshotRecorder : MonoBehaviour
 
             Vector2 rotation = player.Rotation;
             var movementContext = player.MovementContext;
+            var weaponRoot = player.PlayerBones?.WeaponRoot?.Original;
             track.Add(new Snapshot
             {
                 Time = now,
@@ -164,7 +170,10 @@ public class SnapshotRecorder : MonoBehaviour
                 Yaw = rotation.x,
                 Pitch = rotation.y,
                 PoseLevel = movementContext != null ? movementContext.PoseLevel : 1f,
-                Prone = movementContext != null && movementContext.IsInPronePose
+                Prone = movementContext != null && movementContext.IsInPronePose,
+                WeaponPos = weaponRoot != null ? weaponRoot.position : default,
+                WeaponRot = weaponRoot != null ? weaponRoot.rotation : Quaternion.identity,
+                WeaponValid = weaponRoot != null
             });
         }
     }
