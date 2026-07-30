@@ -53,7 +53,23 @@ public class GhostPuppet
         _holder = new GameObject("KillcamReplayPuppet");
         _holder.SetActive(false);
 
-        var clone = Object.Instantiate(source, _holder.transform, true);
+        // Cloning the body drags along the Odin-serialized item scripts of slot-view
+        // gear (holstered/slung weapons); their OnAfterDeserialize throws a
+        // NullReferenceException internally (they expect backend context the item
+        // factory would provide). The failure is provably harmless — those components
+        // get stripped right after anyway — but Unity logs the exception. Silence the
+        // logger for exactly the synchronous Instantiate call.
+        GameObject clone;
+        bool prevLogEnabled = Debug.unityLogger.logEnabled;
+        Debug.unityLogger.logEnabled = false;
+        try
+        {
+            clone = Object.Instantiate(source, _holder.transform, true);
+        }
+        finally
+        {
+            Debug.unityLogger.logEnabled = prevLogEnabled;
+        }
 
         // The local player's own head/torso render in ShadowsOnly mode while in first
         // person (EFT's "hide your own head from your own camera" trick). The corpse
@@ -378,12 +394,14 @@ public class GhostPuppet
         }
     }
 
-    // World position of the puppet weapon's (estimated) muzzle, for shot flashes.
-    public bool TryGetMuzzle(out Vector3 position)
+    // World pose of the puppet weapon's (estimated) muzzle, for shot flashes.
+    public bool TryGetMuzzle(out Vector3 position, out Quaternion direction)
     {
         position = default;
+        direction = default;
         if (_weaponPivot == null || !_weaponPivot.gameObject.activeSelf) return false;
         position = _weaponPivot.TransformPoint(new Vector3(0f, 0f, _muzzleLocalZ));
+        direction = _weaponPivot.rotation;
         return true;
     }
 

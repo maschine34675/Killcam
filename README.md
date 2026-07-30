@@ -121,10 +121,19 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
   (Puppet-Quelle) wird ebenfalls ausgeblendet, sobald der Klon steht. Weitere Akteure als
   Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
 - **Mündungsfeuer = Näherung** — an aufgezeichneten Schuss-Zeitpunkten erscheint für ~70ms
-  ein Punktlicht + Glow-Blob (`ShotFlash`): Killer-Schüsse knapp vor der Kamera (seine Augen
-  SIND die Kamera, seine Waffe wird nicht gerendert), eigene Schüsse an der geschätzten
-  Mündung der Puppet-Waffe (weitester +Z-Extent der kopierten Meshes). Kein Partikeleffekt,
-  kein Sound. Abschaltbar via `ShowMuzzleFlashes`.
+  ein Punktlicht + gestrecktes Glow-Ellipsoid in Schussrichtung (`ShotFlash`; Unity hat
+  keinen Kegel-Primitive): Killer-Schüsse knapp vor/unter der Kamera (seine Augen SIND die
+  Kamera, seine Waffe wird nicht gerendert), eigene Schüsse an der geschätzten Mündung der
+  Puppet-Waffe (weitester +Z-Extent der kopierten Meshes). Kein Partikeleffekt, kein Sound.
+  Abschaltbar via `ShowMuzzleFlashes`.
+- **Versteckte Bots werden alle 0,5s nach-gesweept** (`RefreshHidden`): Nachladen und
+  Waffenwechsel erzeugen mitten im Replay NEUE View-Objekte (Magazin in der Hand,
+  Patrone, andere Waffe), die beim initialen Verstecken noch nicht existierten und sonst
+  frei schwebend sichtbar wären.
+- **Der Odin-NullRef beim Leichen-Klonen wird nicht mehr geloggt**: Er stammt von den
+  Item-Scripts der Slot-View-Ausrüstung (Holster-/Rückenwaffe), ist nachweislich folgenlos
+  (die Komponenten werden direkt danach gestrippt) — der Unity-Logger wird exakt für den
+  synchronen `Instantiate`-Aufruf stummgeschaltet.
 - **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
   KillAndDamageInfo-Killcam).
 - **Waffe am Puppet = reine Mesh-Kopie**: Die Odin/Sirenix-Deserialisierung des Waffen-Items

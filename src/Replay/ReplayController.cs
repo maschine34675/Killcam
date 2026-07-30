@@ -47,6 +47,7 @@ public class ReplayController : MonoBehaviour
     private List<float> _victimShots;
     private ShotFlash _killerFlash;
     private ShotFlash _ghostFlash;
+    private float _nextHiderRefresh;
     private float _clock;
     private float _startTime;
     private bool _playing;
@@ -158,6 +159,14 @@ public class ReplayController : MonoBehaviour
         {
             EndPlayback("camera destroyed");
             return;
+        }
+
+        // reloading/weapon swaps spawn new view objects on hidden bots mid-replay
+        // (floating magazines) — sweep them periodically
+        if (Plugin.HideLiveBots.Value && Time.time >= _nextHiderRefresh)
+        {
+            _nextHiderRefresh = Time.time + 0.5f;
+            _hider.RefreshHidden();
         }
 
         if (_inEnding)
@@ -329,7 +338,7 @@ public class ReplayController : MonoBehaviour
         if (AnyShotActive(_shots, t))
         {
             var tr = _camera.transform;
-            _killerFlash.ShowAt(tr.position + tr.forward * 0.45f - tr.up * 0.12f);
+            _killerFlash.ShowAt(tr.position + tr.forward * 0.55f - tr.up * 0.22f, tr.rotation);
         }
         else
         {
@@ -337,16 +346,16 @@ public class ReplayController : MonoBehaviour
         }
 
         bool ghostShot = AnyShotActive(_victimShots, t);
-        if (ghostShot && _puppet != null && _puppet.TryGetMuzzle(out var muzzle))
+        if (ghostShot && _puppet != null && _puppet.TryGetMuzzle(out var muzzle, out var muzzleRot))
         {
-            _ghostFlash.ShowAt(muzzle);
+            _ghostFlash.ShowAt(muzzle, muzzleRot);
         }
         else if (ghostShot && _ghost != null && _victimPath != null)
         {
             var s = _victimPath.Sample(t);
             float ghostPitch = Plugin.InvertPitch.Value ? -s.Pitch : s.Pitch;
             var viewRot = Quaternion.Euler(ghostPitch, s.Yaw, 0f);
-            _ghostFlash.ShowAt(s.CamPos + viewRot * Vector3.forward * 0.6f);
+            _ghostFlash.ShowAt(s.CamPos + viewRot * Vector3.forward * 0.6f, viewRot);
         }
         else
         {

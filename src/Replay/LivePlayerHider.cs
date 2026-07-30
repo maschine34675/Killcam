@@ -40,38 +40,7 @@ public class LivePlayerHider
             if (player == null || player.IsYourPlayer || player.gameObject == null) continue;
 
             var set = new HiddenSet { Player = player };
-
-            HideRenderers(set, player.gameObject.GetComponentsInChildren<Renderer>(false));
-            HideLights(set, player.gameObject.GetComponentsInChildren<Light>(false));
-
-            // The weapon currently held in hands is a separate view object created by
-            // the hands controller under the WeaponRoot bone — it is NOT any SlotView's
-            // model (a slot suppresses its on-body model while its item is in hands),
-            // and empirically not a descendant of player.gameObject either. Weapon-mounted
-            // flashlights live here too, which is why the beam kept floating.
-            var weaponRoot = player.WeaponRoot?.Original;
-            if (weaponRoot != null)
-            {
-                HideRenderers(set, weaponRoot.GetComponentsInChildren<Renderer>(false));
-                HideLights(set, weaponRoot.GetComponentsInChildren<Light>(false));
-            }
-
-            // Equipment view models (weapon, chest rig, backpack, headwear, ...) are
-            // pooled objects (AssetPoolObject) attached to a bone Transform per slot —
-            // not guaranteed to be a descendant the sweep above reaches. PlayerBody.SlotViews
-            // is the game's own authoritative list of every currently equipped view, each
-            // exposing its Renderers directly — hide those explicitly too.
-            var slotViews = player.PlayerBody?.SlotViews;
-            if (slotViews != null)
-            {
-                foreach (var slot in slotViews.GetValuesEnumerator())
-                {
-                    var model = slot?.Model;
-                    if (model == null) continue;
-                    HideRenderers(set, slot.Renderers);
-                    HideLights(set, model.GetComponentsInChildren<Light>(false));
-                }
-            }
+            SweepPlayer(set, player);
 
             if (set.Renderers.Count > 0 || set.Lights.Count > 0)
             {
@@ -83,6 +52,56 @@ public class LivePlayerHider
 
         Plugin.Instance.Logger.LogInfo(
             $"[KillcamReplay] Hid {totalRenderers} renderers, {totalLights} lights of {_hidden.Count} live players");
+    }
+
+    // Reloading and weapon switching spawn NEW view objects (a magazine in the
+    // hand, a chambered round, a different weapon) that did not exist when HideAll
+    // ran — they would float in mid-air next to an invisible bot. Called
+    // periodically during playback to hide anything that appeared since; already
+    // hidden renderers are disabled and therefore skipped by the sweep.
+    public void RefreshHidden()
+    {
+        for (int i = 0; i < _hidden.Count; i++)
+        {
+            var set = _hidden[i];
+            if (set.Player == null || set.Player.gameObject == null) continue;
+            SweepPlayer(set, set.Player);
+        }
+    }
+
+    private static void SweepPlayer(HiddenSet set, Player player)
+    {
+        HideRenderers(set, player.gameObject.GetComponentsInChildren<Renderer>(false));
+        HideLights(set, player.gameObject.GetComponentsInChildren<Light>(false));
+
+        // The weapon currently held in hands is a separate view object created by
+        // the hands controller under the WeaponRoot bone — it is NOT any SlotView's
+        // model (a slot suppresses its on-body model while its item is in hands),
+        // and empirically not a descendant of player.gameObject either. Weapon-mounted
+        // flashlights live here too, which is why the beam kept floating.
+        var weaponRoot = player.WeaponRoot?.Original;
+        if (weaponRoot != null)
+        {
+            HideRenderers(set, weaponRoot.GetComponentsInChildren<Renderer>(false));
+            HideLights(set, weaponRoot.GetComponentsInChildren<Light>(false));
+        }
+
+        // Equipment view models (weapon, chest rig, backpack, headwear, ...) are
+        // pooled objects (AssetPoolObject) attached to a bone Transform per slot —
+        // not guaranteed to be a descendant the sweep above reaches. PlayerBody.SlotViews
+        // is the game's own authoritative list of every currently equipped view, each
+        // exposing its Renderers directly — hide those explicitly too.
+        var slotViews = player.PlayerBody?.SlotViews;
+        if (slotViews != null)
+        {
+            foreach (var slot in slotViews.GetValuesEnumerator())
+            {
+                var model = slot?.Model;
+                if (model == null) continue;
+                HideRenderers(set, slot.Renderers);
+                HideLights(set, model.GetComponentsInChildren<Light>(false));
+            }
+        }
     }
 
     private static void HideRenderers(HiddenSet set, Renderer[] renderers)

@@ -2,16 +2,17 @@ using UnityEngine;
 
 namespace KillcamReplay.Replay;
 
-// A small reusable muzzle-flash stand-in: a point light plus a glowing blob,
-// shown for a few frames at a recorded shot's position. No particles, no audio,
-// no game systems — just enough to read "a shot happened HERE" in 3D.
+// A small reusable muzzle-flash stand-in: a point light plus a glowing blob
+// stretched along the shot direction (Unity has no cone primitive; an elongated
+// ellipsoid reads the same), shown for a few frames at a recorded shot's
+// position. No particles, no audio, no game systems.
 public class ShotFlash
 {
     private static Material _material;
 
     private readonly GameObject _root;
 
-    public ShotFlash()
+    public ShotFlash(float blobWidth = 0.06f, float blobLength = 0.22f)
     {
         _root = new GameObject("KillcamReplayShotFlash");
 
@@ -25,7 +26,8 @@ public class ShotFlash
         var blob = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         Object.Destroy(blob.GetComponent<Collider>());
         blob.transform.SetParent(_root.transform, false);
-        blob.transform.localScale = Vector3.one * 0.16f;
+        blob.transform.localScale = new Vector3(blobWidth, blobWidth, blobLength);
+        blob.transform.localPosition = new Vector3(0f, 0f, blobLength * 0.5f);
 
         var renderer = blob.GetComponent<Renderer>();
         renderer.sharedMaterial = GetMaterial();
@@ -50,10 +52,10 @@ public class ShotFlash
         return _material;
     }
 
-    public void ShowAt(Vector3 position)
+    public void ShowAt(Vector3 position, Quaternion direction)
     {
         if (_root == null) return;
-        _root.transform.position = position;
+        _root.transform.SetPositionAndRotation(position, direction);
         if (!_root.activeSelf)
             _root.SetActive(true);
     }
