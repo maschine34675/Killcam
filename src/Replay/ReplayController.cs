@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Comfort.Common;
 using EFT;
+using EFT.CameraControl;
 using KillcamReplay.Patches;
 using KillcamReplay.Recording;
 using UnityEngine;
@@ -97,7 +98,7 @@ public class ReplayController : MonoBehaviour
         _endPhase = EndingPhase.FadeOutCut;
         _phaseClock = 0f;
         _startTime = _cameraPath.StartTime;
-        _camera = CameraClass.Instance?.Camera;
+        _camera = CameraManager.Instance?.Camera;
         _playing = _camera != null && killerPath.Length >= 2;
 
         Plugin.Instance.Logger.LogInfo(

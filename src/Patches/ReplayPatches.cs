@@ -175,7 +175,7 @@ public static class ReplayPatches
     {
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(EffectsController), "method_9");
+            return AccessTools.Method(typeof(EffectsController), "OnHealthDied");
         }
 
         [PatchPrefix]
@@ -191,7 +191,7 @@ public static class ReplayPatches
 
     // The PlayerCameraController Destroy/Create cycle leaves a stale PerfectCulling
     // sampler behind; a second sampler starting during Stop() cleanup throws
-    // GException8. DestroyImmediate the stale ones. Idempotent alongside the same
+    // PerfectCullingException (4.0: GException8). DestroyImmediate the stale ones. Idempotent alongside the same
     // patch in KillAndDamageInfo.
     public class FixPerfectCullingSamplerPatch : ModulePatch
     {
