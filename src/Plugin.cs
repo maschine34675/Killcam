@@ -13,7 +13,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "1.0.0";
+    public const string PluginVersion = "0.9.0";
 
     public static Plugin Instance;
 
@@ -32,6 +32,8 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<float> HudTopFraction;
     public static ConfigEntry<bool> ShowMuzzleFlashes;
     public static ConfigEntry<bool> ShowKillerWeapon;
+    public static ConfigEntry<float> SlowMoSeconds;
+    public static ConfigEntry<float> SlowMoFactor;
     public static ConfigEntry<KeyboardShortcut> DebugReplayKey;
 
     public static SnapshotRecorder Recorder;
@@ -74,6 +76,10 @@ public class Plugin : BaseUnityPlugin
             "Show 3D muzzle flashes at recorded shot times (killer's shots in front of the camera, your own at the ghost's weapon)");
         ShowKillerWeapon = Config.Bind("Replay", "ShowKillerWeapon", true,
             "Show a mesh copy of the killer's weapon riding its recorded path in front of the camera");
+        SlowMoSeconds = Config.Bind("Replay", "SlowMoSeconds", 1.5f,
+            new ConfigDescription("Play the last N seconds before the kill in slow motion (0 = off)", new AcceptableValueRange<float>(0f, 5f)));
+        SlowMoFactor = Config.Bind("Replay", "SlowMoFactor", 0.35f,
+            new ConfigDescription("Playback speed during the slow-motion window", new AcceptableValueRange<float>(0.1f, 1f)));
         DebugReplayKey = Config.Bind("Debug", "ReplayKey", new KeyboardShortcut(KeyCode.F9),
             "Play a replay of the nearest bot (for testing without dying)");
 

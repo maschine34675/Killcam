@@ -17,8 +17,13 @@ public class LivePlayerHider
     private class HiddenSet
     {
         public Player Player;
+        // live tail: the held weapon is intentionally shown again (first-person-like
+        // view while the camera rides this player's eyes) — skip re-hiding it
+        public bool WeaponVisible;
         public readonly List<Renderer> Renderers = new();
         public readonly List<Light> Lights = new();
+        public readonly List<Renderer> WeaponRenderers = new();
+        public readonly List<Light> WeaponLights = new();
     }
 
     private readonly List<HiddenSet> _hidden = new();
@@ -78,12 +83,16 @@ public class LivePlayerHider
         // the hands controller under the WeaponRoot bone — it is NOT any SlotView's
         // model (a slot suppresses its on-body model while its item is in hands),
         // and empirically not a descendant of player.gameObject either. Weapon-mounted
-        // flashlights live here too, which is why the beam kept floating.
-        var weaponRoot = player.WeaponRoot?.Original;
-        if (weaponRoot != null)
+        // flashlights live here too, which is why the beam kept floating. Tracked in
+        // separate lists so the live tail can show just the held weapon again.
+        if (!set.WeaponVisible)
         {
-            HideRenderers(set, weaponRoot.GetComponentsInChildren<Renderer>(false));
-            HideLights(set, weaponRoot.GetComponentsInChildren<Light>(false));
+            var weaponRoot = player.WeaponRoot?.Original;
+            if (weaponRoot != null)
+            {
+                HideInto(set.WeaponRenderers, weaponRoot.GetComponentsInChildren<Renderer>(false));
+                HideLightsInto(set.WeaponLights, weaponRoot.GetComponentsInChildren<Light>(false));
+            }
         }
 
         // Equipment view models (weapon, chest rig, backpack, headwear, ...) are
@@ -106,18 +115,28 @@ public class LivePlayerHider
 
     private static void HideRenderers(HiddenSet set, Renderer[] renderers)
     {
+        HideInto(set.Renderers, renderers);
+    }
+
+    private static void HideLights(HiddenSet set, Light[] lights)
+    {
+        HideLightsInto(set.Lights, lights);
+    }
+
+    private static void HideInto(List<Renderer> target, Renderer[] renderers)
+    {
         for (int j = 0; j < renderers.Length; j++)
         {
             var renderer = renderers[j];
             if (renderer != null && renderer.enabled)
             {
                 renderer.enabled = false;
-                set.Renderers.Add(renderer);
+                target.Add(renderer);
             }
         }
     }
 
-    private static void HideLights(HiddenSet set, Light[] lights)
+    private static void HideLightsInto(List<Light> target, Light[] lights)
     {
         for (int j = 0; j < lights.Length; j++)
         {
@@ -125,8 +144,37 @@ public class LivePlayerHider
             if (light != null && light.enabled)
             {
                 light.enabled = false;
-                set.Lights.Add(light);
+                target.Add(light);
             }
+        }
+    }
+
+    // Live tail: the camera rides this player's live eyes — showing his held weapon
+    // again gives a natural first-person view (his body stays hidden to avoid
+    // clipping). WeaponVisible also stops RefreshHidden from re-hiding new weapon
+    // views he spawns while reloading.
+    public void ShowHeldWeapon(Player player)
+    {
+        for (int i = 0; i < _hidden.Count; i++)
+        {
+            var set = _hidden[i];
+            if (set.Player != player) continue;
+
+            set.WeaponVisible = true;
+            for (int j = 0; j < set.WeaponRenderers.Count; j++)
+            {
+                var renderer = set.WeaponRenderers[j];
+                if (renderer != null)
+                    renderer.enabled = true;
+            }
+            for (int j = 0; j < set.WeaponLights.Count; j++)
+            {
+                var light = set.WeaponLights[j];
+                if (light != null)
+                    light.enabled = true;
+            }
+            set.WeaponRenderers.Clear();
+            set.WeaponLights.Clear();
         }
     }
 
@@ -160,6 +208,18 @@ public class LivePlayerHider
         for (int i = 0; i < set.Lights.Count; i++)
         {
             var light = set.Lights[i];
+            if (light != null)
+                light.enabled = true;
+        }
+        for (int i = 0; i < set.WeaponRenderers.Count; i++)
+        {
+            var renderer = set.WeaponRenderers[i];
+            if (renderer != null)
+                renderer.enabled = true;
+        }
+        for (int i = 0; i < set.WeaponLights.Count; i++)
+        {
+            var light = set.WeaponLights[i];
             if (light != null)
                 light.enabled = true;
         }

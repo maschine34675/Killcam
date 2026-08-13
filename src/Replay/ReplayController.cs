@@ -69,9 +69,16 @@ public class ReplayController : MonoBehaviour
 
     public static float GetExtraDelay()
     {
-        return PendingReplayKiller != null
-            ? LeadIn + Plugin.ReplayDuration.Value + 2f * EndFadeDuration + Plugin.LiveTailSeconds.Value + TailBuffer
+        if (PendingReplayKiller == null) return 0f;
+
+        // slow motion stretches the last SlowMoSeconds of recorded time by 1/factor
+        // in wall-clock time; upper bound (the ease ramp makes it slightly less)
+        float slowMoExtra = Plugin.SlowMoSeconds.Value > 0f
+            ? Plugin.SlowMoSeconds.Value * (1f / Plugin.SlowMoFactor.Value - 1f)
             : 0f;
+
+        return LeadIn + Plugin.ReplayDuration.Value + slowMoExtra
+            + 2f * EndFadeDuration + Plugin.LiveTailSeconds.Value + TailBuffer;
     }
 
     private void Update()
@@ -183,7 +190,7 @@ public class ReplayController : MonoBehaviour
             return;
         }
 
-        _clock += Time.deltaTime;
+        _clock += Time.deltaTime * CurrentPlaybackSpeed();
 
         if (_startTime + _clock >= _cameraPath.EndTime)
         {
@@ -202,6 +209,21 @@ public class ReplayController : MonoBehaviour
         }
 
         ApplyCurrentPose();
+    }
+
+    // Slow motion for the final moments before the kill: the playback clock simply
+    // advances slower — no Time.timeScale involved, the live world keeps running
+    // normally. Eases into the slow factor over the first 0.4s of the window.
+    private float CurrentPlaybackSpeed()
+    {
+        float slowSeconds = Plugin.SlowMoSeconds.Value;
+        if (slowSeconds <= 0f) return 1f;
+
+        float remaining = _cameraPath.EndTime - (_startTime + _clock);
+        if (remaining > slowSeconds) return 1f;
+
+        float ease = Mathf.Clamp01((slowSeconds - remaining) / 0.4f);
+        return Mathf.Lerp(1f, Plugin.SlowMoFactor.Value, ease);
     }
 
     // Ending sequence once the recorded path is exhausted (the kill moment): fade
@@ -285,11 +307,18 @@ public class ReplayController : MonoBehaviour
         _puppet = null;
 
         // Keep the killer hidden while the camera follows his live eyes — his own
-        // model would clip into the view. He reappears at EndPlayback's RestoreAll.
+        // model would clip into the view. His HELD WEAPON is shown again though:
+        // riding his live hands it reads like a natural first-person view. He fully
+        // reappears at EndPlayback's RestoreAll.
         if (PendingReplayKiller != null && Plugin.FollowKillerInTail.Value)
+        {
             _hider.RestoreAllExcept(PendingReplayKiller);
+            _hider.ShowHeldWeapon(PendingReplayKiller);
+        }
         else
+        {
             _hider.RestoreAll();
+        }
     }
 
     private void ApplyCurrentPose()

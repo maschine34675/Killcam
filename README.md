@@ -31,6 +31,12 @@ Raid-Ende-Sequenz abbricht (Soft-Lock). Der Todes-Fade (`EffectsController.metho
 DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst läge er schwarz
 über dem Replay.
 
+**Zeitlupe:**
+Die letzten `SlowMoSeconds` (Standard 1,5s) vor dem Kill laufen in Zeitlupe
+(`SlowMoFactor`, Standard 0,35×) — rein über die Playback-Clock, kein `Time.timeScale`;
+die Live-Welt läuft normal weiter. Sanfter Übergang über 0,4s beim Eintritt ins Fenster.
+Der Deferred-Stop-Delay berücksichtigt die gestreckte Wanduhrzeit.
+
 **Weiches Ende (Live-Tail):**
 Am Ende des aufgezeichneten Pfads (dem Kill-Moment) endet das Replay nicht hart: kurzer
 Fade zu Schwarz (~0,2s), unter Voll-Schwarz der Szenenwechsel auf die Live-Welt (Puppet
@@ -40,7 +46,11 @@ ausgeblendet), Fade zurück, dann folgt die Kamera für `LiveTailSeconds` (Stand
 falls er inzwischen tot ist). Danach blendet das Replay selbst zu Schwarz ab und hält
 Schwarz, bis der re-invokte `LocalGame.Stop` seinen eigenen Blackscreen aufgezogen hat
 (erkannt über `DeferStopPatch.StopReinvokedAt` + 1,5s; Not-Timeout 5s) — die Corpse-Cam
-blitzt also nie mehr zwischen Replay-Ende und Raid-Ende-Übergang auf. Wurde `Stop` nicht
+blitzt also nie mehr zwischen Replay-Ende und Raid-Ende-Übergang auf. Im Live-Tail bleibt
+der Killer selbst versteckt (Kamera sitzt in seinen Augen), aber seine **gehaltene Waffe
+wird wieder eingeblendet** (`LivePlayerHider.ShowHeldWeapon`) — sie reitet auf seinen
+Live-Händen und wirkt wie eine natürliche Ego-Ansicht; auch beim Nachladen erzeugte neue
+Waffen-Views bleiben sichtbar (vom Refresh-Sweep ausgenommen). Wurde `Stop` nicht
 deferred (z.B. weil eine Respawn-Mod den Tod abgefangen hat), wird die Kamera nach dem
 Tail direkt zurückgegeben — kein Schwarz-Halten, das sonst den Respawn-Prompt verdecken
 würde. Beim F9-Debug-Replay ist der Tail bewusst deaktiviert (der Spieler lebt und wäre
@@ -93,8 +103,10 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 |---|---|---|
 | Recording.SampleRate | 20 Hz | Aufnahmerate |
 | Recording.BufferSeconds | 15 s | Ringpuffer-Länge |
-| Replay.Duration | 5 s | Replay-Länge |
-| Replay.LiveTailSeconds | 2 s | Nach Replay-Ende noch live weiterzeigen (0 = aus) |
+| Replay.Duration | 10 s | Replay-Länge |
+| Replay.LiveTailSeconds | 5 s | Nach Replay-Ende noch live weiterzeigen (0 = aus) |
+| Replay.SlowMoSeconds | 1.5 s | Die letzten N Sekunden vor dem Kill in Zeitlupe (0 = aus) |
+| Replay.SlowMoFactor | 0.35 | Abspielgeschwindigkeit im Zeitlupen-Fenster |
 | Replay.FollowKillerInTail | true | Im Live-Nachlauf dem Killer live folgen statt statisch zu verharren |
 | Replay.HudTopFraction | 0.87 | Vertikale Position des Killcam-HUD (Anteil der Bildschirmhöhe von oben) |
 | Replay.ShowMuzzleFlashes | true | 3D-Mündungsfeuer an aufgezeichneten Schuss-Zeitpunkten |
