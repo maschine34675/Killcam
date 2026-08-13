@@ -175,6 +175,21 @@ public class LivePlayerHider
             }
             set.WeaponRenderers.Clear();
             set.WeaponLights.Clear();
+
+            // The tracked list only contains what was enabled at sweep time — for a
+            // distant bot that's the low-poly LOD (or a single part). Force the
+            // full-detail LOD0 meshes on so the close-up first-person view isn't a
+            // blob of triangles.
+            var weaponRoot = player.WeaponRoot?.Original;
+            if (weaponRoot != null)
+            {
+                var meshes = WeaponMeshCollector.Collect(weaponRoot, out _);
+                for (int j = 0; j < meshes.Count; j++)
+                {
+                    if (meshes[j] != null)
+                        meshes[j].enabled = true;
+                }
+            }
         }
     }
 

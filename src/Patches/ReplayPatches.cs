@@ -109,6 +109,10 @@ public static class ReplayPatches
 
                 Plugin.ReplayCtrl.StopPlayback("superseded by death replay");
 
+                // must happen AFTER StopPlayback (which marks ready) and BEFORE the
+                // game's death chain calls Stop — the deferred Stop waits on this
+                Plugin.ReplayCtrl.ArmStopHandoff();
+
                 ReplayController.PendingReplayKiller = killer;
                 Plugin.Instance.StartCoroutine(
                     Plugin.ReplayCtrl.RunDeathReplay(__instance, path, victimPath, boneWindow, shots, victimShots, killer.Profile?.Nickname ?? "?"));
@@ -147,16 +151,28 @@ public static class ReplayPatches
             if (_isReentry || exitStatus != ExitStatus.Killed || ReplayController.PendingReplayKiller == null)
                 return true;
 
-            Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Deferring LocalGame.Stop by {ReplayController.GetExtraDelay():F1}s");
+            Plugin.Instance.Logger.LogInfo("[KillcamReplay] Deferring LocalGame.Stop until replay hand-off");
             StopWasDeferred = true;
             StopReinvokedAt = 0f;
             Plugin.Instance.StartCoroutine(DeferredStop(__instance, profileId, exitStatus, exitName, delay));
             return false;
         }
 
+        // Waits for the replay's actual hand-off signal instead of a fixed delay:
+        // a fixed wait measured the full sequence from the moment Stop was called,
+        // which over-waits whenever the recorded path is shorter than the
+        // configured duration — and by ~10s when Stop arrives mid-replay (e.g. a
+        // CorpseRun give-up), leaving the player staring at the corpse cam.
+        // GetExtraDelay only serves as a safety cap now.
         private static IEnumerator DeferredStop(LocalGame game, string profileId, ExitStatus exitStatus, string exitName, float delay)
         {
-            yield return new WaitForSeconds(ReplayController.GetExtraDelay());
+            // ReadyForStop is the single wait condition: IsPlaying is false during the
+            // LeadIn wait before playback starts, so it must not gate the loop.
+            float deadline = Time.time + ReplayController.GetExtraDelay() + 5f;
+            var replay = Plugin.ReplayCtrl;
+            while (Time.time < deadline && replay != null && !replay.ReadyForStop)
+                yield return null;
+
             Plugin.Instance.Logger.LogInfo("[KillcamReplay] Re-invoking deferred LocalGame.Stop");
             StopReinvokedAt = Time.time;
             _isReentry = true;

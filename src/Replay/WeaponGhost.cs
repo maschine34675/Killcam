@@ -12,6 +12,7 @@ public class WeaponGhost
     private readonly Transform _pivot;
     private float _muzzleLocalZ = 0.5f;
     private int _copied;
+    private bool _usedInactiveFallback;
 
     public static WeaponGhost TryCreate(Player source)
     {
@@ -26,7 +27,9 @@ public class WeaponGhost
                 ghost.Destroy();
                 return null;
             }
-            Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Killer weapon ghost: copied {ghost._copied} meshes");
+            Plugin.Instance.Logger.LogInfo(
+                $"[KillcamReplay] Killer weapon ghost: copied {ghost._copied} meshes"
+                + (ghost._usedInactiveFallback ? " (inactive fallback)" : ""));
             return ghost;
         }
         catch (System.Exception ex)
@@ -41,11 +44,10 @@ public class WeaponGhost
         _pivot = new GameObject("KillcamReplayKillerWeapon").transform;
         _pivot.gameObject.SetActive(false);
 
-        var sourceRenderers = weaponRoot.GetComponentsInChildren<MeshRenderer>(false);
-        for (int i = 0; i < sourceRenderers.Length; i++)
+        var sourceRenderers = WeaponMeshCollector.Collect(weaponRoot, out _usedInactiveFallback);
+        for (int i = 0; i < sourceRenderers.Count; i++)
         {
             var renderer = sourceRenderers[i];
-            if (renderer == null || !renderer.enabled) continue;
             var meshFilter = renderer.GetComponent<MeshFilter>();
             if (meshFilter == null || meshFilter.sharedMesh == null) continue;
 

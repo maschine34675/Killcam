@@ -67,6 +67,20 @@ public class ReplayController : MonoBehaviour
 
     public bool IsPlaying => _playing;
 
+    // Signals the deferred LocalGame.Stop that the replay is about to hand the
+    // screen over (final fade started) — the Stop coroutine waits for this instead
+    // of a fixed delay, so it adapts to the ACTUAL sequence length (shorter paths,
+    // slow-mo stretch, or a CorpseRun give-up arriving mid-replay). Armed (reset to
+    // false) in the OnDead postfix BEFORE the game calls Stop; it still carries the
+    // previous playback's true otherwise, and the death replay itself only starts
+    // after the LeadIn wait.
+    public bool ReadyForStop { get; private set; } = true;
+
+    public void ArmStopHandoff()
+    {
+        ReadyForStop = false;
+    }
+
     public static float GetExtraDelay()
     {
         if (PendingReplayKiller == null) return 0f;
@@ -145,6 +159,7 @@ public class ReplayController : MonoBehaviour
         _playing = false;
         _inEnding = false;
         _cutToLive = false;
+        ReadyForStop = true;
         Application.onBeforeRender -= ApplyCurrentPose;
         _ghost?.Destroy();
         _ghost = null;
@@ -263,6 +278,7 @@ public class ReplayController : MonoBehaviour
                     {
                         _endPhase = EndingPhase.FinalFade;
                         _phaseClock = 0f;
+                        ReadyForStop = true;
                     }
                     else
                     {
@@ -478,6 +494,9 @@ public class ReplayController : MonoBehaviour
         while (_playing)
             yield return null;
 
+        // safety: if Play never started (camera missing), EndPlayback never ran and
+        // the deferred Stop would otherwise wait for its timeout cap
+        ReadyForStop = true;
         PendingReplayKiller = null;
     }
 

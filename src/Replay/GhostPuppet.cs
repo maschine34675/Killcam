@@ -128,11 +128,10 @@ public class GhostPuppet
             pivot.SetParent(_holder.transform, false);
 
             int copied = 0;
-            var sourceRenderers = weaponRoot.GetComponentsInChildren<MeshRenderer>(false);
-            for (int i = 0; i < sourceRenderers.Length; i++)
+            var sourceRenderers = WeaponMeshCollector.Collect(weaponRoot, out bool usedInactiveFallback);
+            for (int i = 0; i < sourceRenderers.Count; i++)
             {
                 var renderer = sourceRenderers[i];
-                if (renderer == null || !renderer.enabled) continue;
                 var meshFilter = renderer.GetComponent<MeshFilter>();
                 if (meshFilter == null || meshFilter.sharedMesh == null) continue;
 
@@ -177,6 +176,7 @@ public class GhostPuppet
             int skinned = weaponRoot.GetComponentsInChildren<SkinnedMeshRenderer>(false).Length;
             Plugin.Instance.Logger.LogInfo(
                 $"[KillcamReplay] Puppet weapon: copied {copied} meshes; track spread root={spreadRoot:F2}m anim={spreadAnim:F2}m -> using {(useAnim ? "anim" : "root")}"
+                + (usedInactiveFallback ? " (inactive fallback)" : "")
                 + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
         }
         catch (System.Exception ex)
