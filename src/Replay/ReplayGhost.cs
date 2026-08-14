@@ -51,7 +51,7 @@ public class ReplayGhost
             {
                 color = new Color(0.45f, 0.85f, 1f, 0.45f)
             };
-            Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Ghost shader: {shader.name}");
+            Plugin.Instance.Logger.LogInfo($"Ghost shader: {shader.name}");
         }
         return _material;
     }

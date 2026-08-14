@@ -39,7 +39,7 @@ public class GhostPuppet
         }
         catch (System.Exception ex)
         {
-            Plugin.Instance.Logger.LogError($"[KillcamReplay] Puppet creation failed, falling back to silhouette: {ex}");
+            Plugin.Instance.Logger.LogError($"Puppet creation failed, falling back to silhouette: {ex}");
             return null;
         }
     }
@@ -92,7 +92,7 @@ public class GhostPuppet
             _mapped[i] = _cloneRoot.Find(window.Paths[i]);
             if (_mapped[i] != null) found++;
         }
-        Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Puppet: mapped {found}/{window.Paths.Length} bones");
+        Plugin.Instance.Logger.LogInfo($"Puppet: mapped {found}/{window.Paths.Length} bones");
 
         AttachWeaponMeshes();
 
@@ -157,7 +157,7 @@ public class GhostPuppet
 
             if (copied == 0)
             {
-                Plugin.Instance.Logger.LogWarning("[KillcamReplay] Puppet weapon: no meshes found to copy");
+                Plugin.Instance.Logger.LogWarning("Puppet weapon: no meshes found to copy");
                 Object.Destroy(pivot.gameObject);
                 return;
             }
@@ -175,13 +175,13 @@ public class GhostPuppet
             _weaponPivot = pivot;
             int skinned = weaponRoot.GetComponentsInChildren<SkinnedMeshRenderer>(false).Length;
             Plugin.Instance.Logger.LogInfo(
-                $"[KillcamReplay] Puppet weapon: copied {copied} meshes; track spread root={spreadRoot:F2}m anim={spreadAnim:F2}m -> using {(useAnim ? "anim" : "root")}"
+                $"Puppet weapon: copied {copied} meshes; track spread root={spreadRoot:F2}m anim={spreadAnim:F2}m -> using {(useAnim ? "anim" : "root")}"
                 + (usedInactiveFallback ? " (inactive fallback)" : "")
                 + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
         }
         catch (System.Exception ex)
         {
-            Plugin.Instance.Logger.LogError($"[KillcamReplay] Puppet weapon attach failed: {ex}");
+            Plugin.Instance.Logger.LogError($"Puppet weapon attach failed: {ex}");
         }
     }
 
@@ -268,7 +268,7 @@ public class GhostPuppet
             c is not Transform && c is not Renderer && c is not MeshFilter
             && c is not Light && c is not ParticleSystem);
 
-        Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Puppet: stripped {stripped} components");
+        Plugin.Instance.Logger.LogInfo($"Puppet: stripped {stripped} components");
     }
 
     private static int StripUntilStable(GameObject clone, System.Func<Component, bool> shouldRemove)

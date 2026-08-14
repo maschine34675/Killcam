@@ -56,7 +56,7 @@ public class LivePlayerHider
         }
 
         Plugin.Instance.Logger.LogInfo(
-            $"[KillcamReplay] Hid {totalRenderers} renderers, {totalLights} lights of {_hidden.Count} live players");
+            $"Hid {totalRenderers} renderers, {totalLights} lights of {_hidden.Count} live players");
     }
 
     // Reloading and weapon switching spawn NEW view objects (a magazine in the

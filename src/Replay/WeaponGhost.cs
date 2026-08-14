@@ -28,13 +28,13 @@ public class WeaponGhost
                 return null;
             }
             Plugin.Instance.Logger.LogInfo(
-                $"[KillcamReplay] Killer weapon ghost: copied {ghost._copied} meshes"
+                $"Killer weapon ghost: copied {ghost._copied} meshes"
                 + (ghost._usedInactiveFallback ? " (inactive fallback)" : ""));
             return ghost;
         }
         catch (System.Exception ex)
         {
-            Plugin.Instance.Logger.LogError($"[KillcamReplay] Killer weapon ghost failed: {ex}");
+            Plugin.Instance.Logger.LogError($"Killer weapon ghost failed: {ex}");
             return null;
         }
     }

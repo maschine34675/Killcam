@@ -123,7 +123,7 @@ public class ReplayController : MonoBehaviour
         _playing = _camera != null && killerPath.Length >= 2;
 
         Plugin.Instance.Logger.LogInfo(
-            $"[KillcamReplay] Playback start: {killerPath.Length} snapshots, span {_cameraPath.EndTime - _cameraPath.StartTime:F2}s, bones={(boneWindow != null ? boneWindow.Times.Length.ToString() : "none")}, camera={(_camera != null ? "ok" : "NULL")}");
+            $"Playback start: {killerPath.Length} snapshots, span {_cameraPath.EndTime - _cameraPath.StartTime:F2}s, bones={(boneWindow != null ? boneWindow.Times.Length.ToString() : "none")}, camera={(_camera != null ? "ok" : "NULL")}");
 
         if (_playing)
         {
@@ -172,7 +172,7 @@ public class ReplayController : MonoBehaviour
         _killerWeapon?.Destroy();
         _killerWeapon = null;
         _hider.RestoreAll();
-        Plugin.Instance.Logger.LogInfo($"[KillcamReplay] Playback end after {_clock:F2}s: {reason}");
+        Plugin.Instance.Logger.LogInfo($"Playback end after {_clock:F2}s: {reason}");
     }
 
     public void StopPlayback(string reason)
@@ -526,7 +526,7 @@ public class ReplayController : MonoBehaviour
 
         if (!Plugin.Recorder.TryGetTrack(nearest, out var track))
         {
-            Plugin.Instance.Logger.LogWarning("[KillcamReplay] Debug replay: no track for nearest bot");
+            Plugin.Instance.Logger.LogWarning("Debug replay: no track for nearest bot");
             return;
         }
 
@@ -535,7 +535,7 @@ public class ReplayController : MonoBehaviour
         var path = track.ExtractWindow(from, now);
         if (path.Length < 2)
         {
-            Plugin.Instance.Logger.LogWarning("[KillcamReplay] Debug replay: not enough snapshots");
+            Plugin.Instance.Logger.LogWarning("Debug replay: not enough snapshots");
             return;
         }
         var shots = track.ExtractShots(from, now);

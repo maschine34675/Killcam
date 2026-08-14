@@ -54,7 +54,7 @@ public static class ReplayPatches
             }
             catch (System.Exception ex)
             {
-                Plugin.Instance.Logger.LogError($"[KillcamReplay] ShotRecord failed: {ex}");
+                Plugin.Instance.Logger.LogError($"ShotRecord failed: {ex}");
             }
         }
     }
@@ -80,7 +80,7 @@ public static class ReplayPatches
 
                 if (!Plugin.Recorder.TryGetTrack(killer, out var track))
                 {
-                    Plugin.Instance.Logger.LogWarning("[KillcamReplay] No track recorded for killer — skipping replay");
+                    Plugin.Instance.Logger.LogWarning("No track recorded for killer — skipping replay");
                     return;
                 }
 
@@ -89,7 +89,7 @@ public static class ReplayPatches
                 var path = track.ExtractWindow(from, now);
                 if (path.Length < 2)
                 {
-                    Plugin.Instance.Logger.LogWarning($"[KillcamReplay] Killer track too short ({path.Length} snapshots) — skipping replay");
+                    Plugin.Instance.Logger.LogWarning($"Killer track too short ({path.Length} snapshots) — skipping replay");
                     return;
                 }
                 var shots = track.ExtractShots(from, now);
@@ -105,7 +105,7 @@ public static class ReplayPatches
                 var boneWindow = Plugin.Recorder.Bones.ExtractWindow(from, now);
 
                 Plugin.Instance.Logger.LogInfo(
-                    $"[KillcamReplay] Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}");
+                    $"Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}");
 
                 Plugin.ReplayCtrl.StopPlayback("superseded by death replay");
 
@@ -119,7 +119,7 @@ public static class ReplayPatches
             }
             catch (System.Exception ex)
             {
-                Plugin.Instance.Logger.LogError($"[KillcamReplay] DeathReplay failed: {ex}");
+                Plugin.Instance.Logger.LogError($"DeathReplay failed: {ex}");
                 ReplayController.PendingReplayKiller = null;
             }
         }
@@ -151,7 +151,7 @@ public static class ReplayPatches
             if (_isReentry || exitStatus != ExitStatus.Killed || ReplayController.PendingReplayKiller == null)
                 return true;
 
-            Plugin.Instance.Logger.LogInfo("[KillcamReplay] Deferring LocalGame.Stop until replay hand-off");
+            Plugin.Instance.Logger.LogInfo("Deferring LocalGame.Stop until replay hand-off");
             StopWasDeferred = true;
             StopReinvokedAt = 0f;
             Plugin.Instance.StartCoroutine(DeferredStop(__instance, profileId, exitStatus, exitName, delay));
@@ -173,7 +173,7 @@ public static class ReplayPatches
             while (Time.time < deadline && replay != null && !replay.ReadyForStop)
                 yield return null;
 
-            Plugin.Instance.Logger.LogInfo("[KillcamReplay] Re-invoking deferred LocalGame.Stop");
+            Plugin.Instance.Logger.LogInfo("Re-invoking deferred LocalGame.Stop");
             StopReinvokedAt = Time.time;
             _isReentry = true;
             game.Stop(profileId, exitStatus, exitName, delay);
@@ -200,7 +200,7 @@ public static class ReplayPatches
             if (ReplayController.PendingReplayKiller == null)
                 return true;
 
-            Plugin.Instance.Logger.LogInfo("[KillcamReplay] Suppressing death fade during replay");
+            Plugin.Instance.Logger.LogInfo("Suppressing death fade during replay");
             return false;
         }
     }
@@ -218,7 +218,7 @@ public static class ReplayPatches
             _samplerType = AccessTools.TypeByName("Koenigz.PerfectCulling.EFT.PerfectCullingCrossSceneSampler");
             if (_samplerType == null)
             {
-                Plugin.Instance.Logger.LogWarning("[KillcamReplay] PerfectCullingCrossSceneSampler type not found — sampler patch skipped");
+                Plugin.Instance.Logger.LogWarning("PerfectCullingCrossSceneSampler type not found — sampler patch skipped");
                 return null;
             }
 

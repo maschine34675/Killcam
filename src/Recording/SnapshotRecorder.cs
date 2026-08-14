@@ -142,7 +142,7 @@ public class SnapshotRecorder : MonoBehaviour
         }
         catch (System.Exception ex)
         {
-            Plugin.Instance.Logger.LogError($"[KillcamReplay] BoneRecorder sample failed: {ex}");
+            Plugin.Instance.Logger.LogError($"BoneRecorder sample failed: {ex}");
         }
 
         var players = gameWorld.AllAlivePlayersList;
