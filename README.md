@@ -1,175 +1,169 @@
 # KillcamReplay
 
-GUID `com.maschine.KillcamReplay`, Assembly `maschine-KillcamReplay` — Namensschema wie
+GUID `com.maschine.KillcamReplay`, Assembly `maschine-KillcamReplay` — naming scheme as in
 [EasyMounting](https://github.com/maschine34675/EasyMounting).
 
-Echte Killcam für SPT: Beim Tod wird die letzte Aktion **aus der Sicht des Killers** abgespielt —
-kein Live-Blick auf den Killer (wie in KillAndDamageInfo), sondern ein Replay der aufgezeichneten
-Blickrichtung und Position der letzten Sekunden vor dem Kill.
+A true killcam for SPT: on death, the final action is played back **from the killer's point
+of view** — not a live view of the killer (as in KillAndDamageInfo), but a replay of the
+recorded view direction and position of the last seconds before the kill.
 
-## Funktionsweise
+## How it works
 
-**Aufzeichnung (während des Raids):**
-Ein `SnapshotRecorder` sampelt mit fester Rate (Standard 20 Hz) für jeden lebenden Spieler/Bot
-Kameraposition (`Player.CameraPosition`), Blickrichtung (`Player.Rotation`, Yaw/Pitch),
-Körperhaltung (`PoseLevel`, `IsInPronePose`) und die Weltpose der gehaltenen Waffe
-(`PlayerBones.WeaponRoot.Original`) in einen Ringpuffer (Standard 15 s). Schüsse werden über
-einen Postfix auf `Player.OnMakingShot` mit Zeitstempel markiert. Im Replay fährt eine
-script-freie Mesh-Kopie der Killer-Waffe (`WeaponGhost`) ihre aufgezeichnete Spur vor der
-Kamera ab — man sieht, womit und wohin er zielt; der Mündungsblitz sitzt an ihrer Mündung.
+**Recording (during the raid):**
+A `SnapshotRecorder` samples at a fixed rate (default 20 Hz), for every living player/bot,
+the camera position (`Player.CameraPosition`), view direction (`Player.Rotation`, yaw/pitch),
+body pose (`PoseLevel`, `IsInPronePose`) and the world pose of the held weapon
+(`PlayerBones.WeaponRoot.Original`) into a ring buffer (default 15 s). Shots are marked with
+a timestamp via a postfix on `Player.OnMakingShot`. During the replay, a script-free mesh
+copy of the killer's weapon (`WeaponGhost`) travels along its recorded track in front of the
+camera — you can see what he aims with and where; the muzzle flash sits at its muzzle.
 
-**Replay (beim Tod):**
-`Player.OnDead` liefert den Killer (`LastAggressor`). Aus dessen Ringpuffer wird das Fenster
-der letzten N Sekunden (Standard 5 s) extrahiert. `LocalGame.Stop()` wird deferred (gleiches
-Muster wie die KillAndDamageInfo-Killcam) und die Hauptkamera entlang des aufgezeichneten
-Pfads interpoliert (Position: Lerp, Yaw/Pitch: LerpAngle). Die Pose wird in
-`Application.onBeforeRender` gesetzt — nach allen `LateUpdate`s, sodass der weiterlaufende
-`PlayerCameraController` (Corpse-Cam) das gerenderte Bild nicht überschreiben kann. Es wird
-bewusst **kein** Controller zerstört oder erzeugt: `PlayerCameraController.Destroy` hängt den
-`EffectsController` vom Spieler ab, dessen Death-Handler dann NullRefs wirft und die
-Raid-Ende-Sequenz abbricht (Soft-Lock). Der Todes-Fade (`EffectsController.method_9`,
-DeathFade + FastBlur) wird während des Replays per Prefix unterdrückt, sonst läge er schwarz
-über dem Replay.
+**Replay (on death):**
+`Player.OnDead` provides the killer (`LastAggressor`). The window of the last N seconds
+(default 5 s) is extracted from his ring buffer. `LocalGame.Stop()` is deferred (same
+pattern as the KillAndDamageInfo killcam) and the main camera is interpolated along the
+recorded path (position: lerp, yaw/pitch: LerpAngle). The pose is applied in
+`Application.onBeforeRender` — after all `LateUpdate`s, so the still-running
+`PlayerCameraController` (corpse cam) cannot overwrite the rendered image. Deliberately,
+**no** controller is destroyed or created: `PlayerCameraController.Destroy` detaches the
+`EffectsController` from the player, whose death handler then throws NullRefs and aborts the
+end-of-raid sequence (soft lock). The death fade (`EffectsController.method_9`,
+DeathFade + FastBlur) is suppressed via prefix during the replay, otherwise it would sit
+black on top of it.
 
-**Zeitlupe:**
-Die letzten `SlowMoSeconds` (Standard 1,5s) vor dem Kill laufen in Zeitlupe
-(`SlowMoFactor`, Standard 0,35×) — rein über die Playback-Clock, kein `Time.timeScale`;
-die Live-Welt läuft normal weiter. Sanfter Übergang über 0,4s beim Eintritt ins Fenster.
-Der Deferred-Stop-Delay berücksichtigt die gestreckte Wanduhrzeit.
+**Slow motion:**
+The last `SlowMoSeconds` (default 1.5 s) before the kill run in slow motion
+(`SlowMoFactor`, default 0.35×) — purely via the playback clock, no `Time.timeScale`;
+the live world keeps running normally. Smooth transition over 0.4 s when entering the window.
+The deferred-stop delay accounts for the stretched wall-clock time.
 
-**Weiches Ende (Live-Tail):**
-Am Ende des aufgezeichneten Pfads (dem Kill-Moment) endet das Replay nicht hart: kurzer
-Fade zu Schwarz (~0,2s), unter Voll-Schwarz der Szenenwechsel auf die Live-Welt (Puppet
-weg, versteckte Bots und die eigene Leiche wieder sichtbar — nur der Killer bleibt
-ausgeblendet), Fade zurück, dann folgt die Kamera für `LiveTailSeconds` (Standard 2s)
-**live den Augen des Killers** (`FollowKillerInTail`; Fallback: letzte Replay-Position,
-falls er inzwischen tot ist). Danach blendet das Replay selbst zu Schwarz ab und hält
-Schwarz, bis der re-invokte `LocalGame.Stop` seinen eigenen Blackscreen aufgezogen hat
-(erkannt über `DeferStopPatch.StopReinvokedAt` + 1,5s; Not-Timeout 5s) — die Corpse-Cam
-blitzt also nie mehr zwischen Replay-Ende und Raid-Ende-Übergang auf. Im Live-Tail bleibt
-der Killer selbst versteckt (Kamera sitzt in seinen Augen), aber seine **gehaltene Waffe
-wird wieder eingeblendet** (`LivePlayerHider.ShowHeldWeapon`) — sie reitet auf seinen
-Live-Händen und wirkt wie eine natürliche Ego-Ansicht; auch beim Nachladen erzeugte neue
-Waffen-Views bleiben sichtbar (vom Refresh-Sweep ausgenommen). Wurde `Stop` nicht
-deferred (z.B. weil eine Respawn-Mod den Tod abgefangen hat), wird die Kamera nach dem
-Tail direkt zurückgegeben — kein Schwarz-Halten, das sonst den Respawn-Prompt verdecken
-würde. Beim F9-Debug-Replay ist der Tail bewusst deaktiviert (der Spieler lebt und wäre
-so lange blind).
+**Soft ending (live tail):**
+At the end of the recorded path (the kill moment) the replay does not end abruptly: a short
+fade to black (~0.2 s), under full black the scene switches to the live world (puppet
+removed, hidden bots and your own corpse visible again — only the killer stays hidden),
+fade back, then the camera follows **the killer's eyes live** for `LiveTailSeconds`
+(default 2 s) (`FollowKillerInTail`; fallback: last replay position if he has died in the
+meantime). Afterwards the replay itself fades to black and holds black until the re-invoked
+`LocalGame.Stop` has raised its own blackscreen (detected via
+`DeferStopPatch.StopReinvokedAt` + 1.5 s; emergency timeout 5 s) — so the corpse cam never
+flashes up between replay end and the end-of-raid transition. During the live tail the
+killer himself stays hidden (the camera sits in his eyes), but his **held weapon is shown
+again** (`LivePlayerHider.ShowHeldWeapon`) — it rides on his live hands and reads like a
+natural first-person view; weapon views newly created while reloading also stay visible
+(excluded from the refresh sweep). If `Stop` was not deferred (e.g. because a respawn mod
+intercepted the death), the camera is returned directly after the tail — no black hold,
+which would otherwise cover the respawn prompt. In the F9 debug replay the tail is
+deliberately disabled (the player is alive and would be blind for that long).
 
-**Victim-Ghost (Phase 2/3):**
-Während des Replays sieht man sich selbst durch die Augen des Killers. Zwei Darstellungen:
+**Victim ghost (phase 2/3):**
+During the replay you watch yourself through the killer's eyes. Two representations:
 
-- **Echtes Charaktermodell** (`GhostPuppet`, Standard): Der `BoneRecorder` zeichnet das
-  komplette Skelett des lokalen Spielers auf (nur der lokale Spieler — deshalb bezahlbar:
-  ~einige hundert Transform-Reads pro Tick, flache vorallokierte Arrays, wenige MB). Beim
-  Replay wird die Leiche geklont — `Corpse.CreateCorpse` konvertiert das echte, angezogene
-  Spieler-GameObject in-place, der Klon trägt also Kleidung + Gear. Vor dem Strippen wird auf
-  jedem Renderer des Klons `shadowCastingMode = On` erzwungen — sonst bleiben Kopf/Oberkörper
-  unsichtbar, weil EFT sie beim eigenen Spieler in Egoperspektive per
-  `ShadowCastingMode.ShadowsOnly` rendert (die Corpse-Konvertierung setzt das nie zurück) und
-  ein roher Klon diesen Zustand mit-kopiert. Der naheliegende Weg über
-  `PlayerBody.UpdatePlayerRenders(ThirdPerson, ...)` — Sonys eigene Methode dafür — funktioniert
-  auf dem Klon NICHT: sie iteriert `PlayerBody.BodySkins`, das erst zur Laufzeit (Awake/Equip)
-  befüllt wird und auf einem Klon, dessen Awake wir bewusst nie laufen lassen, leer ist (stiller
-  No-Op, kein Fehler). Der direkte Renderer-Sweep umgeht das komplett. Der Klon wird unter
-  einem INAKTIVEN Holder
-  instanziert (kein Awake läuft), alle Scripts/Physik/Animator per `DestroyImmediate`
-  gestrippt (kein Awake → keine OnDestroy-Seiteneffekte), Knochen per Hierarchie-Pfad gemappt
-  und pro Frame mit den aufgezeichneten Posen überschrieben — **kein Animator nötig**, exakte
-  Wiedergabe von Gang, Lean und Zielen. Die Quelle (Leiche bzw. Live-Körper) wird nach dem
-  Klonen ausgeblendet, damit sie nicht neben dem laufenden Ghost sichtbar bleibt.
-- **Silhouette** (`ReplayGhost`, automatischer Fallback): Kapsel-Körper mit haltungsabhängiger
-  Höhe, Kopf-Kugel, Blickrichtungs-Balken — falls Puppet-Erstellung fehlschlägt oder
-  `UseRealModelGhost` aus ist.
+- **Real character model** (`GhostPuppet`, default): The `BoneRecorder` records the
+  complete skeleton of the local player (only the local player — which is what keeps it
+  affordable: ~a few hundred transform reads per tick, flat preallocated arrays, a few MB).
+  On replay the corpse is cloned — `Corpse.CreateCorpse` converts the real, dressed player
+  GameObject in place, so the clone wears clothing + gear. Before stripping, every renderer
+  on the clone is forced to `shadowCastingMode = On` — otherwise head/upper body stay
+  invisible, because EFT renders them on your own player in first person with
+  `ShadowCastingMode.ShadowsOnly` (the corpse conversion never resets that) and a raw clone
+  copies this state along. The obvious route via
+  `PlayerBody.UpdatePlayerRenders(ThirdPerson, ...)` — the game's own method for this — does
+  NOT work on the clone: it iterates `PlayerBody.BodySkins`, which is only populated at
+  runtime (Awake/Equip) and is empty on a clone whose Awake we deliberately never run
+  (silent no-op, no error). The direct renderer sweep bypasses that entirely. The clone is
+  instantiated under an INACTIVE holder (no Awake runs), all scripts/physics/animator are
+  stripped via `DestroyImmediate` (no Awake → no OnDestroy side effects), bones are mapped
+  by hierarchy path and overwritten per frame with the recorded poses — **no animator
+  needed**, exact playback of gait, lean and aiming. The source (corpse or live body) is
+  hidden after cloning so it does not stay visible next to the running ghost.
+- **Silhouette** (`ReplayGhost`, automatic fallback): capsule body with pose-dependent
+  height, head sphere, view-direction bar — in case puppet creation fails or
+  `UseRealModelGhost` is off.
 
-Beim F9-Debug-Replay ist der Ghost der eigene Pfad (Puppet-Quelle = lebender Körper; der
-eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich selbst zusehen.
+In the F9 debug replay the ghost is your own path (puppet source = living body; your own
+head stays invisible there for FPS reasons): stand in front of a bot, F9, watch yourself.
 
-## Performance-Budget
+## Performance budget
 
-- **Idle-Kosten pro Frame:** 2 float-Vergleiche (Sample nicht fällig → early-out).
-- **Pro Sample-Tick (20×/s):** pro lebendem Spieler 1 Transform-Read + 1 Vector2-Read +
-  1 Struct-Write in ein vorallokiertes Array. Bei ~30 Bots: Mikrosekunden-Bereich.
-- **Keine GC-Allokationen im Hot Path:** Ringpuffer sind vorallokiert (Structs), das
-  Track-Dictionary wächst nur, wenn ein neuer Spieler spawnt. Extraktion des Replay-Fensters
-  allokiert nur einmal beim Tod.
-- **Speicher:** 32 Bytes/Snapshot × 20 Hz × 15 s ≈ 9,6 KB pro Spieler; bei 40 Spielern ≈ 385 KB.
-  Der Bone-Recorder (nur lokaler Spieler) kommt je nach Skelettgröße auf einige MB
-  (wird beim Raid-Start geloggt).
+- **Idle cost per frame:** 2 float comparisons (sample not due → early-out).
+- **Per sample tick (20×/s):** per living player 1 transform read + 1 Vector2 read +
+  1 struct write into a preallocated array. With ~30 bots: microsecond range.
+- **No GC allocations in the hot path:** ring buffers are preallocated (structs), the
+  track dictionary only grows when a new player spawns. Extracting the replay window
+  allocates only once, on death.
+- **Memory:** 32 bytes/snapshot × 20 Hz × 15 s ≈ 9.6 KB per player; with 40 players ≈ 385 KB.
+  The bone recorder (local player only) takes a few MB depending on skeleton size
+  (logged at raid start).
 
-## Konfiguration (BepInEx F12 / Config-Datei)
+## Configuration (BepInEx F12 / config file)
 
-| Option | Default | Beschreibung |
+| Option | Default | Description |
 |---|---|---|
-| Recording.SampleRate | 20 Hz | Aufnahmerate |
-| Recording.BufferSeconds | 15 s | Ringpuffer-Länge |
-| Replay.Duration | 10 s | Replay-Länge |
-| Replay.LiveTailSeconds | 5 s | Nach Replay-Ende noch live weiterzeigen (0 = aus) |
-| Replay.SlowMoSeconds | 1.5 s | Die letzten N Sekunden vor dem Kill in Zeitlupe (0 = aus) |
-| Replay.SlowMoFactor | 0.35 | Abspielgeschwindigkeit im Zeitlupen-Fenster |
-| Replay.FollowKillerInTail | true | Im Live-Nachlauf dem Killer live folgen statt statisch zu verharren |
-| Replay.HudTopFraction | 0.87 | Vertikale Position des Killcam-HUD (Anteil der Bildschirmhöhe von oben) |
-| Replay.ShowMuzzleFlashes | true | 3D-Mündungsfeuer an aufgezeichneten Schuss-Zeitpunkten |
-| Replay.ShowKillerWeapon | true | Mesh-Kopie der Killer-Waffe fährt ihre aufgezeichnete Spur vor der Kamera ab |
-| Replay.DeathReplay | true | Replay beim eigenen Tod |
-| Replay.ShowVictimGhost | true | Eigene Silhouette (Ghost) im Replay anzeigen |
-| Replay.UseRealModelGhost | true | Echtes Charaktermodell statt Silhouette (Fallback automatisch) |
-| Replay.HideLiveBots | true | Lebende Bots während des Replays ausblenden |
-| Replay.InvertPitch | false | Vertikale Blickrichtung invertieren (falls Kamera falsch kippt) |
-| Debug.ReplayKey | F9 | Replay des nächstgelegenen Bots sofort abspielen (Test ohne Sterben) |
+| Recording.SampleRate | 20 Hz | Recording rate |
+| Recording.BufferSeconds | 15 s | Ring buffer length |
+| Replay.Duration | 10 s | Replay length |
+| Replay.LiveTailSeconds | 5 s | Keep showing live after replay end (0 = off) |
+| Replay.SlowMoSeconds | 1.5 s | Play the last N seconds before the kill in slow motion (0 = off) |
+| Replay.SlowMoFactor | 0.35 | Playback speed inside the slow-motion window |
+| Replay.FollowKillerInTail | true | Follow the killer live during the tail instead of staying static |
+| Replay.HudTopFraction | 0.87 | Vertical position of the killcam HUD (fraction of screen height from the top) |
+| Replay.ShowMuzzleFlashes | true | 3D muzzle flashes at recorded shot timestamps |
+| Replay.ShowKillerWeapon | true | Mesh copy of the killer's weapon travels its recorded track in front of the camera |
+| Replay.DeathReplay | true | Replay on your own death |
+| Replay.ShowVictimGhost | true | Show your own silhouette (ghost) in the replay |
+| Replay.UseRealModelGhost | true | Real character model instead of silhouette (automatic fallback) |
+| Replay.HideLiveBots | true | Hide living bots during the replay |
+| Replay.InvertPitch | false | Invert vertical view direction (in case the camera tilts the wrong way) |
+| Debug.ReplayKey | F9 | Immediately play a replay of the nearest bot (testing without dying) |
 
-## Bekannte Einschränkungen (Prototyp)
+## Known limitations (prototype)
 
-- **Die Welt läuft live weiter** — lebende Bots (inkl. des Killers) werden während des Replays
-  aber ausgeblendet (`LivePlayerHider`: `Renderer.enabled`, KI/Logik laufen weiter; danach
-  Wiederherstellung). Ausrüstungs-Ansichten (Waffe, Chest Rig, Rucksack, Kopfbedeckung, ...)
-  sind gepoolte Objekte (`AssetPoolObject`), die an einem Bone hängen — nicht garantiert
-  Nachfahren von `player.gameObject` — deshalb wird zusätzlich `PlayerBody.SlotViews`
-  durchlaufen (die eigene, autoritative Liste des Spiels für jede aktuell ausgerüstete
-  Ansicht) und deren `Renderers` explizit versteckt. Die Waffe **in der Hand** ist dabei
-  KEIN SlotView-Modell (der Slot unterdrückt sein Körper-Modell, solange das Item in der
-  Hand ist) — sie ist ein eigenes View-Objekt des Hands-Controllers unter dem
-  `WeaponRoot`-Bone und wird separat gesweept. Eine Taschenlampe ist außerdem kein
-  Renderer, sondern ein `UnityEngine.Light`-Component (sitzt typischerweise an der
-  Hand-Waffe), das beim reinen Verstecken der Mesh weiterleuchtet — deshalb werden
-  zusätzlich alle `Light`-Komponenten (Spieler-Hierarchie, Slots, WeaponRoot) deaktiviert.
-  Die eigene Leiche/der Live-Körper
-  (Puppet-Quelle) wird ebenfalls ausgeblendet, sobald der Klon steht. Weitere Akteure als
-  Ghosts (z.B. der Killer bei Drittperspektive) wären ein späterer Ausbau.
-- **Mündungsfeuer = Näherung** — an aufgezeichneten Schuss-Zeitpunkten erscheint für ~70ms
-  ein Punktlicht + gestrecktes Glow-Ellipsoid in Schussrichtung (`ShotFlash`; Unity hat
-  keinen Kegel-Primitive): Killer-Schüsse knapp vor/unter der Kamera (seine Augen SIND die
-  Kamera, seine Waffe wird nicht gerendert), eigene Schüsse an der geschätzten Mündung der
-  Puppet-Waffe (weitester +Z-Extent der kopierten Meshes). Kein Partikeleffekt, kein Sound.
-  Abschaltbar via `ShowMuzzleFlashes`.
-- **Versteckte Bots werden alle 0,5s nach-gesweept** (`RefreshHidden`): Nachladen und
-  Waffenwechsel erzeugen mitten im Replay NEUE View-Objekte (Magazin in der Hand,
-  Patrone, andere Waffe), die beim initialen Verstecken noch nicht existierten und sonst
-  frei schwebend sichtbar wären.
-- **Der Odin-NullRef beim Leichen-Klonen wird nicht mehr geloggt**: Er stammt von den
-  Item-Scripts der Slot-View-Ausrüstung (Holster-/Rückenwaffe), ist nachweislich folgenlos
-  (die Komponenten werden direkt danach gestrippt) — der Unity-Logger wird exakt für den
-  synchronen `Instantiate`-Aufruf stummgeschaltet.
-- **Das „Killed in Action"-Panel** erscheint als UI-Overlay über dem Replay (wie bei der
-  KillAndDamageInfo-Killcam).
-- **Waffe am Puppet = reine Mesh-Kopie**: Die Odin/Sirenix-Deserialisierung des Waffen-Items
-  wirft beim rohen Klonen eine (intern gefangene) NullReferenceException und lässt das
-  Waffen-Mesh leer. Deshalb wird die Waffe gar nicht mitgeklont, sondern ihre Meshes werden
-  einzeln kopiert (`AttachWeaponMeshes`: neue GameObjects mit sharedMesh + sharedMaterials,
-  ohne jegliche Scripts) und an den gemappten WeaponRoot-Bone des Puppets gehängt — sie
-  reiten auf der aufgezeichneten Hand-Animation. Skinned-Meshes (z.B. Gurte) werden
-  übersprungen; bewegliche Waffenteile (Bolzen etc.) sind in der Kopie statisch.
-- **Koexistenz mit KillAndDamageInfo:** Dessen Live-Killcam besitzt ebenfalls die Todessequenz
-  (deferred Stop + Kamera-Übernahme). Ist die Mod geladen, deaktiviert sich das Death-Replay
-  automatisch (Log-Warnung); das F9-Debug-Replay funktioniert weiterhin. Zum Testen des
-  Death-Replays die KillAndDamageInfo.dll temporär aus `BepInEx/plugins` nehmen.
-- **Respawn-Kompatibilität (z.B. CorpseRun):** Die Aufzeichnung wird beim eigenen Tod
-  absichtlich NICHT dauerhaft gestoppt (nur während der ~10s, die ein Replay aktiv den
-  Bildschirm belegt) — sonst bricht die Aufzeichnung nach dem ersten Tod endgültig ab und
-  jedes weitere Replay in derselben Runde scheitert mit „Killer track too short". Der
-  `BoneRecorder` erkennt einen Charakterwechsel (neues Player-GameObject nach Respawn) und
-  initialisiert sich automatisch neu. In-game verifiziert mit CorpseRun (mehrere Tode/Replays
-  in einer Runde).
+- **The world keeps running live** — living bots (including the killer) are hidden during
+  the replay though (`LivePlayerHider`: `Renderer.enabled`, AI/logic keep running; restored
+  afterwards). Equipment views (weapon, chest rig, backpack, headwear, ...) are pooled
+  objects (`AssetPoolObject`) attached to a bone — not guaranteed to be descendants of
+  `player.gameObject` — so `PlayerBody.SlotViews` (the game's own authoritative list of
+  every currently equipped view) is traversed additionally and its `Renderers` are hidden
+  explicitly. The weapon **in the hands** is NOT a SlotView model (the slot suppresses its
+  body model while the item is held) — it is a separate view object of the hands controller
+  under the `WeaponRoot` bone and is swept separately. A flashlight moreover is not a
+  renderer but a `UnityEngine.Light` component (typically sitting on the hand weapon) that
+  keeps shining when only the mesh is hidden — so all `Light` components (player hierarchy,
+  slots, WeaponRoot) are disabled as well. Your own corpse/live body (the puppet source) is
+  also hidden as soon as the clone is up. Additional actors as ghosts (e.g. the killer in a
+  third-person view) would be a later extension.
+- **Muzzle flash = approximation** — at recorded shot timestamps a point light + stretched
+  glow ellipsoid appears in shot direction for ~70 ms (`ShotFlash`; Unity has no cone
+  primitive): killer shots just in front of/below the camera (his eyes ARE the camera, his
+  weapon is not rendered), own shots at the estimated muzzle of the puppet weapon (furthest
+  +Z extent of the copied meshes). No particle effect, no sound. Can be disabled via
+  `ShowMuzzleFlashes`.
+- **Hidden bots are re-swept every 0.5 s** (`RefreshHidden`): reloading and weapon switching
+  create NEW view objects mid-replay (magazine in the hand, round, different weapon) that
+  did not exist at the initial hide and would otherwise be visible, floating freely.
+- **The Odin NullRef on corpse cloning is no longer logged**: it comes from the item scripts
+  of the slot-view equipment (holster/back weapon), is demonstrably without consequence
+  (the components are stripped right afterwards) — the Unity logger is muted exactly for the
+  synchronous `Instantiate` call.
+- **The "Killed in Action" panel** appears as a UI overlay on top of the replay (as with the
+  KillAndDamageInfo killcam).
+- **Weapon on the puppet = pure mesh copy**: the Odin/Sirenix deserialization of the weapon
+  item throws an (internally caught) NullReferenceException on raw cloning and leaves the
+  weapon mesh empty. So the weapon is not cloned at all; its meshes are copied individually
+  (`AttachWeaponMeshes`: new GameObjects with sharedMesh + sharedMaterials, without any
+  scripts) and attached to the puppet's mapped WeaponRoot bone — they ride on the recorded
+  hand animation. Skinned meshes (e.g. straps) are skipped; moving weapon parts (bolt etc.)
+  are static in the copy.
+- **Coexistence with KillAndDamageInfo:** its live killcam also owns the death sequence
+  (deferred stop + camera takeover). If that mod is loaded, the death replay disables itself
+  automatically (log warning); the F9 debug replay still works. To test the death replay,
+  temporarily remove the KillAndDamageInfo DLL from `BepInEx/plugins`.
+- **Respawn compatibility (e.g. CorpseRun):** recording is deliberately NOT stopped
+  permanently on your own death (only during the ~10 s a replay actively occupies the
+  screen) — otherwise recording would end for good after the first death and every further
+  replay in the same round would fail with "Killer track too short". The `BoneRecorder`
+  detects a character switch (new player GameObject after respawn) and reinitializes itself
+  automatically. Verified in-game with CorpseRun (multiple deaths/replays in one round).
 
 ## Build
 
@@ -177,4 +171,4 @@ eigene Kopf bleibt dort FPS-bedingt unsichtbar): vor einen Bot stellen, F9, sich
 dotnet build -c Debug
 ```
 
-Kopiert DLL + PDB automatisch nach `C:\SPT\BepInEx\plugins\`.
+Automatically copies DLL + PDB to `C:\SPT\BepInEx\plugins\`.
