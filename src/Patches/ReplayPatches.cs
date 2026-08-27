@@ -162,7 +162,7 @@ public static class ReplayPatches
         // a fixed wait measured the full sequence from the moment Stop was called,
         // which over-waits whenever the recorded path is shorter than the
         // configured duration — and by ~10s when Stop arrives mid-replay (e.g. a
-        // CorpseRun give-up), leaving the player staring at the corpse cam.
+        // Redeploy give-up), leaving the player staring at the corpse cam.
         // GetExtraDelay only serves as a safety cap now.
         private static IEnumerator DeferredStop(LocalGame game, string profileId, ExitStatus exitStatus, string exitName, float delay)
         {

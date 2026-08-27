@@ -121,7 +121,7 @@ public class SnapshotRecorder : MonoBehaviour
     private void Update()
     {
         // Recording is intentionally never disarmed on local-player death: with a
-        // respawn mod (e.g. CorpseRun) the raid continues and tracking must too.
+        // respawn mod (e.g. Redeploy) the raid continues and tracking must too.
         // Only pause for the few seconds a replay actively owns the screen.
         if (!_armed || (Plugin.ReplayCtrl != null && Plugin.ReplayCtrl.IsPlaying)) return;
 
