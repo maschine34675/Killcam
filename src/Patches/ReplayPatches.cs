@@ -75,6 +75,10 @@ public static class ReplayPatches
 
                 if (!Plugin.DeathReplayActive) return;
 
+                // Arena sessions respawn instantly — a replay would play over the
+                // live respawned player. Skip it entirely (see ArenaCompat).
+                if (ArenaCompat.IsArenaActive()) return;
+
                 var killer = ___LastAggressor as Player;
                 if (killer == null || killer.gameObject == null) return;
 
