@@ -32,6 +32,10 @@ public class PlayerTrack
     private int _shotHead;
     private int _shotCount;
 
+    // Time of the most recent sample. Only players in AllAlivePlayersList are
+    // sampled, so this doubles as "last seen alive" and drives track retirement.
+    public float LastSampleTime { get; private set; }
+
     public PlayerTrack(int capacity)
     {
         _buffer = new Snapshot[capacity];
@@ -42,6 +46,7 @@ public class PlayerTrack
         _buffer[_head] = s;
         _head = (_head + 1) % _buffer.Length;
         if (_count < _buffer.Length) _count++;
+        LastSampleTime = s.Time;
     }
 
     public void AddShot(float time)
@@ -84,11 +89,27 @@ public class PlayerTrack
 // ring buffers at a fixed rate (default 20 Hz). The per-frame cost when a sample
 // is not due is two float comparisons; a sample tick reads one transform position
 // and one Vector2 per player and writes a struct into a preallocated array.
-// The track dictionary only grows when a new player spawns.
+// The track dictionary grows when a new player spawns and shrinks again once a
+// track goes stale (see PruneStaleTracks), so its size follows the number of
+// living players, not the number that ever lived.
 public class SnapshotRecorder : MonoBehaviour
 {
+    // A track is retired once its player has gone unsampled — dead, despawned or
+    // destroyed — for longer than the replay window plus a small margin. Past that
+    // point ExtractWindow could not return a usable path anyway (a killer who died
+    // that much earlier has no snapshots left inside [death - Duration, death]),
+    // while keeping the entry costs a ring buffer and, worse, pins the dead Player
+    // itself: the dictionary key is a strong reference. A raid with continuous bot
+    // spawns otherwise accumulates one track per bot that ever lived.
+    private const float TrackGraceSeconds = 2f;
+    private const float PruneInterval = 5f;
+    private const float PruneLogInterval = 30f;
+
     private readonly Dictionary<Player, PlayerTrack> _tracks = new();
+    private readonly List<Player> _staleScratch = new();
     private float _nextSampleTime;
+    private float _nextPruneTime;
+    private float _nextPruneLogTime;
     private float _sampleInterval;
     private int _capacity;
     private bool _armed;
@@ -102,6 +123,8 @@ public class SnapshotRecorder : MonoBehaviour
         _sampleInterval = 1f / Plugin.SampleRate.Value;
         _capacity = Mathf.CeilToInt(Plugin.BufferSeconds.Value * Plugin.SampleRate.Value) + 2;
         _nextSampleTime = 0f;
+        _nextPruneTime = 0f;
+        _nextPruneLogTime = 0f;
         _armed = true;
         Bones.Reset(_capacity);
     }
@@ -121,7 +144,7 @@ public class SnapshotRecorder : MonoBehaviour
     private void Update()
     {
         // Recording is intentionally never disarmed on local-player death: with a
-        // respawn mod (e.g. CorpseRun) the raid continues and tracking must too.
+        // respawn mod (e.g. Redeploy) the raid continues and tracking must too.
         // Only pause for the few seconds a replay actively owns the screen.
         if (!_armed || (Plugin.ReplayCtrl != null && Plugin.ReplayCtrl.IsPlaying)) return;
 
@@ -132,6 +155,9 @@ public class SnapshotRecorder : MonoBehaviour
         var gameWorld = Singleton<GameWorld>.Instance;
         if (gameWorld == null)
         {
+            // Raid over: nothing reads these tracks again, and holding them would
+            // pin every player of the finished raid until the next raid arms.
+            _tracks.Clear();
             _armed = false;
             return;
         }
@@ -176,5 +202,57 @@ public class SnapshotRecorder : MonoBehaviour
                 WeaponValid = weaponRoot != null
             });
         }
+
+        if (now >= _nextPruneTime)
+        {
+            _nextPruneTime = now + PruneInterval;
+            PruneStaleTracks(now, gameWorld.MainPlayer);
+        }
+    }
+
+    // Player.OnDeadCoroutine unregisters the dead player from AllAlivePlayersList
+    // one frame after death, so a track that stopped advancing marks a player that
+    // died, despawned or was destroyed — no death hook of our own needed.
+    private void PruneStaleTracks(float now, Player mainPlayer)
+    {
+        float cutoff = now - Plugin.ReplayDuration.Value - TrackGraceSeconds;
+
+        _staleScratch.Clear();
+        foreach (var pair in _tracks)
+        {
+            var player = pair.Key;
+
+            // Unity-destroyed body: the track can never be extended or used again.
+            if (player == null)
+            {
+                _staleScratch.Add(player);
+                continue;
+            }
+
+            // The local player's track survives their own death: the recorder stays
+            // armed for respawn mods (see Update) and no sample is written while
+            // dead, so staleness would retire exactly the track the next replay
+            // needs for the victim ghost. Only a previous body that a respawn has
+            // already replaced as MainPlayer is allowed to expire.
+            if (player.IsYourPlayer && (mainPlayer == null || ReferenceEquals(player, mainPlayer)))
+                continue;
+
+            if (pair.Value.LastSampleTime < cutoff)
+                _staleScratch.Add(player);
+        }
+
+        if (_staleScratch.Count == 0) return;
+
+        for (int i = 0; i < _staleScratch.Count; i++)
+            _tracks.Remove(_staleScratch[i]);
+
+        if (now >= _nextPruneLogTime)
+        {
+            _nextPruneLogTime = now + PruneLogInterval;
+            Plugin.Instance.Logger.LogInfo($"Retired {_staleScratch.Count} stale player track(s), {_tracks.Count} live");
+        }
+
+        // never keep the dead players alive past the pass that dropped them
+        _staleScratch.Clear();
     }
 }

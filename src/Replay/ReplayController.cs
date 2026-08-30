@@ -70,7 +70,7 @@ public class ReplayController : MonoBehaviour
     // Signals the deferred LocalGame.Stop that the replay is about to hand the
     // screen over (final fade started) — the Stop coroutine waits for this instead
     // of a fixed delay, so it adapts to the ACTUAL sequence length (shorter paths,
-    // slow-mo stretch, or a CorpseRun give-up arriving mid-replay). Armed (reset to
+    // slow-mo stretch, or a Redeploy give-up arriving mid-replay). Armed (reset to
     // false) in the OnDead postfix BEFORE the game calls Stop; it still carries the
     // previous playback's true otherwise, and the death replay itself only starts
     // after the LeadIn wait.

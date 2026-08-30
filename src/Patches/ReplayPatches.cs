@@ -75,6 +75,10 @@ public static class ReplayPatches
 
                 if (!Plugin.DeathReplayActive) return;
 
+                // Arena sessions respawn instantly — a replay would play over the
+                // live respawned player. Skip it entirely (see ArenaCompat).
+                if (ArenaCompat.IsArenaActive()) return;
+
                 var killer = ___LastAggressor as Player;
                 if (killer == null || killer.gameObject == null) return;
 
@@ -162,7 +166,7 @@ public static class ReplayPatches
         // a fixed wait measured the full sequence from the moment Stop was called,
         // which over-waits whenever the recorded path is shorter than the
         // configured duration — and by ~10s when Stop arrives mid-replay (e.g. a
-        // CorpseRun give-up), leaving the player staring at the corpse cam.
+        // Redeploy give-up), leaving the player staring at the corpse cam.
         // GetExtraDelay only serves as a safety cap now.
         private static IEnumerator DeferredStop(LocalGame game, string profileId, ExitStatus exitStatus, string exitName, float delay)
         {

@@ -158,12 +158,12 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
   (deferred stop + camera takeover). If that mod is loaded, the death replay disables itself
   automatically (log warning); the F9 debug replay still works. To test the death replay,
   temporarily remove the KillAndDamageInfo DLL from `BepInEx/plugins`.
-- **Respawn compatibility (e.g. CorpseRun):** recording is deliberately NOT stopped
+- **Respawn compatibility (e.g. Redeploy):** recording is deliberately NOT stopped
   permanently on your own death (only during the ~10 s a replay actively occupies the
   screen) — otherwise recording would end for good after the first death and every further
   replay in the same round would fail with "Killer track too short". The `BoneRecorder`
   detects a character switch (new player GameObject after respawn) and reinitializes itself
-  automatically. Verified in-game with CorpseRun (multiple deaths/replays in one round).
+  automatically. Verified in-game with Redeploy (multiple deaths/replays in one round).
 
 ## Build
 

@@ -71,7 +71,7 @@ public class BoneRecorder
     {
         if (mainPlayer == null || _capacity == 0) return;
 
-        // A respawn (e.g. via CorpseRun) gives a new Player/GameObject for the local
+        // A respawn (e.g. via Redeploy) gives a new Player/GameObject for the local
         // character; the cached bone Transforms would otherwise point at the discarded
         // old body (or, once destroyed, compare Unity-null). Start fresh for the new one.
         if (_bones != null && (_root == null || mainPlayer.gameObject.transform != _root))
