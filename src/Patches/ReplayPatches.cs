@@ -75,9 +75,11 @@ public static class ReplayPatches
 
                 if (!Plugin.DeathReplayActive) return;
 
-                // Arena sessions respawn instantly — a replay would play over the
-                // live respawned player. Skip it entirely (see ArenaCompat).
-                if (ArenaCompat.IsArenaActive()) return;
+                // Most arena modes respawn instantly, and a replay would play over
+                // the live respawned player — those ask for zero. A mode that
+                // makes the player wait out the round asks for a short one
+                // instead (see ArenaCompat).
+                if (ArenaCompat.IsArenaActive() && ArenaCompat.ArenaReplaySeconds() <= 0f) return;
 
                 var killer = ___LastAggressor as Player;
                 if (killer == null || killer.gameObject == null) return;
@@ -89,7 +91,7 @@ public static class ReplayPatches
                 }
 
                 float now = Time.time;
-                float from = now - Plugin.ReplayDuration.Value;
+                float from = now - ReplayController.EffectiveDuration;
                 var path = track.ExtractWindow(from, now);
                 if (path.Length < 2)
                 {

@@ -81,6 +81,25 @@ public class ReplayController : MonoBehaviour
         ReadyForStop = false;
     }
 
+    /// <summary>
+    /// How far back this replay reaches, in seconds.
+    ///
+    /// One property rather than a read of the config at each site, because the
+    /// two readers must agree: the death path cuts a window of this length, and
+    /// GetExtraDelay bounds the deferred Stop's wait. That wait normally ends on
+    /// ReadyForStop — GetExtraDelay is the cap for when that signal never
+    /// arrives — so a cap computed from a different number than the window was
+    /// cut with is a cap that can expire mid-playback.
+    /// </summary>
+    public static float EffectiveDuration
+    {
+        get
+        {
+            var arena = ArenaCompat.IsArenaActive() ? ArenaCompat.ArenaReplaySeconds() : 0f;
+            return arena > 0f ? arena : Plugin.ReplayDuration.Value;
+        }
+    }
+
     public static float GetExtraDelay()
     {
         if (PendingReplayKiller == null) return 0f;
@@ -91,7 +110,7 @@ public class ReplayController : MonoBehaviour
             ? Plugin.SlowMoSeconds.Value * (1f / Plugin.SlowMoFactor.Value - 1f)
             : 0f;
 
-        return LeadIn + Plugin.ReplayDuration.Value + slowMoExtra
+        return LeadIn + EffectiveDuration + slowMoExtra
             + 2f * EndFadeDuration + Plugin.LiveTailSeconds.Value + TailBuffer;
     }
 
