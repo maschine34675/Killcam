@@ -402,9 +402,11 @@ public class ReplayController : MonoBehaviour
         UpdateShotFlashes(t);
     }
 
-    // Brief 3D flashes at recorded shot times: the killer's shots light up just in
-    // front of the camera (his eyes ARE the camera, his weapon isn't rendered), the
-    // victim's own shots flash at the puppet weapon's estimated muzzle.
+    // Brief 3D flashes at recorded shot times, always oriented along the SHOOTER'S
+    // recorded aim: the killer's at his weapon's muzzle (his eyes are the camera),
+    // the victim's at the puppet weapon's. The weapon pivots carry a view
+    // container's world pose whose local axes do not follow the barrel, so only
+    // the aim tells the elongated flash which way to point (see WeaponMuzzle).
     private void UpdateShotFlashes(float t)
     {
         if (_killerFlash == null) return;
@@ -418,33 +420,33 @@ public class ReplayController : MonoBehaviour
 
         if (AnyShotActive(_shots, t))
         {
+            var tr = _camera.transform;
+
             // prefer the actual muzzle of the killer's weapon ghost if it's showing
-            if (_killerWeapon != null && _killerWeapon.TryGetMuzzle(out var killerMuzzle, out var killerDir))
-            {
+            if (_killerWeapon != null && _killerWeapon.TryGetMuzzle(tr.rotation, out var killerMuzzle, out var killerDir))
                 _killerFlash.ShowAt(killerMuzzle, killerDir);
-            }
             else
-            {
-                var tr = _camera.transform;
                 _killerFlash.ShowAt(tr.position + tr.forward * 0.55f - tr.up * 0.22f, tr.rotation);
-            }
         }
         else
         {
             _killerFlash.Hide();
         }
 
-        bool ghostShot = AnyShotActive(_victimShots, t);
-        if (ghostShot && _puppet != null && _puppet.TryGetMuzzle(out var muzzle, out var muzzleRot))
-        {
-            _ghostFlash.ShowAt(muzzle, muzzleRot);
-        }
-        else if (ghostShot && _ghost != null && _victimPath != null)
+        // the victim's aim comes from their own recorded path, the same source the
+        // ghost/puppet is posed from
+        if (AnyShotActive(_victimShots, t) && _victimPath != null)
         {
             var s = _victimPath.Sample(t);
             float ghostPitch = Plugin.InvertPitch.Value ? -s.Pitch : s.Pitch;
             var viewRot = Quaternion.Euler(ghostPitch, s.Yaw, 0f);
-            _ghostFlash.ShowAt(s.CamPos + viewRot * Vector3.forward * 0.6f, viewRot);
+
+            if (_puppet != null && _puppet.TryGetMuzzle(viewRot, out var muzzle, out var muzzleRot))
+                _ghostFlash.ShowAt(muzzle, muzzleRot);
+            else if (_ghost != null)
+                _ghostFlash.ShowAt(s.CamPos + viewRot * Vector3.forward * 0.6f, viewRot);
+            else
+                _ghostFlash.Hide();
         }
         else
         {

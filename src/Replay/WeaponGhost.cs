@@ -10,7 +10,8 @@ namespace KillcamReplay.Replay;
 public class WeaponGhost
 {
     private readonly Transform _pivot;
-    private float _muzzleLocalZ = 0.5f;
+    private Bounds _localBounds;
+    private bool _hasBounds;
     private int _copied;
     private bool _usedInactiveFallback;
 
@@ -64,10 +65,7 @@ public class WeaponGhost
             copy.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
             _copied++;
 
-            float partMaxZ = t.localPosition.z
-                + (meshFilter.sharedMesh.bounds.center.z + meshFilter.sharedMesh.bounds.extents.z) * t.localScale.z;
-            if (partMaxZ > _muzzleLocalZ)
-                _muzzleLocalZ = partMaxZ;
+            WeaponMuzzle.Encapsulate(ref _localBounds, ref _hasBounds, t, meshFilter.sharedMesh);
         }
     }
 
@@ -85,14 +83,10 @@ public class WeaponGhost
             _pivot.gameObject.SetActive(false);
     }
 
-    public bool TryGetMuzzle(out Vector3 position, out Quaternion direction)
+    // Muzzle pose for a shot flash, aimed along the killer's recorded view.
+    public bool TryGetMuzzle(Quaternion aim, out Vector3 position, out Quaternion direction)
     {
-        position = default;
-        direction = default;
-        if (_pivot == null || !_pivot.gameObject.activeSelf) return false;
-        position = _pivot.TransformPoint(new Vector3(0f, 0f, _muzzleLocalZ));
-        direction = _pivot.rotation;
-        return true;
+        return WeaponMuzzle.TryGetMuzzle(_pivot, _localBounds, _hasBounds, aim, out position, out direction);
     }
 
     public void Destroy()
