@@ -376,13 +376,15 @@ public class ReplayController : MonoBehaviour
 
         var camSnap = _cameraPath.Sample(t);
         float pitch = Plugin.InvertPitch.Value ? -camSnap.Pitch : camSnap.Pitch;
+        var aim = Quaternion.Euler(pitch, camSnap.Yaw, 0f);
         tr.position = camSnap.CamPos;
-        tr.rotation = Quaternion.Euler(pitch, camSnap.Yaw, 0f);
+        tr.rotation = aim;
 
         if (_killerWeapon != null)
         {
+            // the camera IS the killer's eyes, so his aim orients his weapon
             if (camSnap.WeaponValid && !_cutToLive)
-                _killerWeapon.SetPose(camSnap.WeaponPos, camSnap.WeaponRot);
+                _killerWeapon.SetPose(camSnap.WeaponPos, camSnap.WeaponRot, aim, camSnap.CamPos);
             else
                 _killerWeapon.Hide();
         }
