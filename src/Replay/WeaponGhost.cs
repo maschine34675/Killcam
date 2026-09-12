@@ -15,7 +15,8 @@ namespace KillcamReplay.Replay;
 // caught. Catching a reload left the weapon pointing at the ceiling for the whole
 // replay. The fireport gives the true barrel frame at capture time and sits under
 // the same weapon root, so it stays valid for the frozen copy and lets the pivot
-// be rebuilt from the aim each frame.
+// be rebuilt from the aim each frame. Without such a frame the weapon is not shown
+// at all — placing it by the recorded track alone is what hung it upside down.
 public class WeaponGhost
 {
     // beyond this the recorded position is not a weapon in someone's hands any more
@@ -27,6 +28,7 @@ public class WeaponGhost
     private Quaternion _aimToPivot = Quaternion.identity;
     private Vector3 _localShotDir;
     private bool _aimLocked;
+    private string _rejectReason = "unknown";
     private bool _loggedAlignment;
     private int _copied;
     private bool _usedInactiveFallback;
@@ -38,15 +40,28 @@ public class WeaponGhost
             var weaponRoot = source?.PlayerBones?.WeaponRoot?.Original;
             if (weaponRoot == null) return null;
 
-            var ghost = new WeaponGhost(source, weaponRoot);
+            var ghost = new WeaponGhost(weaponRoot);
             if (ghost._copied == 0)
             {
                 ghost.Destroy();
                 return null;
             }
+
+            // Without a barrel frame the copy could only be placed by the recorded
+            // track — exactly what hung weapons upside down when the killer was
+            // holstering or swapping at capture time. Showing nothing is better:
+            // the shot flash then uses its camera-relative position, which is
+            // oriented by the aim and always right.
+            if (!ghost._aimLocked)
+            {
+                Plugin.Instance.Logger.LogInfo(
+                    $"Killer weapon ghost: {ghost._copied} meshes but no usable barrel frame ({ghost._rejectReason}) — not showing the weapon");
+                ghost.Destroy();
+                return null;
+            }
+
             Plugin.Instance.Logger.LogInfo(
-                $"Killer weapon ghost: copied {ghost._copied} meshes, "
-                + (ghost._aimLocked ? "aim-locked via fireport" : "no fireport — falling back to the recorded rotation")
+                $"Killer weapon ghost: copied {ghost._copied} meshes, aim-locked via fireport"
                 + (ghost._usedInactiveFallback ? " (inactive fallback)" : ""));
             return ghost;
         }
@@ -57,7 +72,7 @@ public class WeaponGhost
         }
     }
 
-    private WeaponGhost(Player source, Transform weaponRoot)
+    private WeaponGhost(Transform weaponRoot)
     {
         _pivot = new GameObject("KillcamReplayKillerWeapon").transform;
         _pivot.gameObject.SetActive(false);
@@ -85,54 +100,89 @@ public class WeaponGhost
             WeaponMuzzle.Encapsulate(ref _localBounds, ref _hasBounds, t, meshFilter.sharedMesh);
         }
 
-        CaptureBarrel(source, weaponRoot);
+        CaptureBarrel(weaponRoot);
     }
 
-    // PlayerBones.FindFireport looks the fireport up UNDER WeaponRoot.Original, so
-    // it is rigid with the meshes copied above and its frame stays valid for the
-    // copy. EFT fires along Fireport.TransformDirection(LocalShotDirection).
-    private void CaptureBarrel(Player source, Transform weaponRoot)
+    // The fireport is looked up under THIS weapon root instead of being taken from
+    // Player.Fireport. That one is cached when a weapon is equipped and still
+    // points at the previous weapon — or at nothing — while its owner is
+    // holstering, drawing or has just dropped it, which is precisely when the copy
+    // ended up in a strange pose. A fireport found under the root we just copied
+    // belongs to these meshes by construction (PlayerBones.FindFireport does the
+    // same lookup), and EFT fires along its forward axis: LocalShotDirection only
+    // adds the iron-sight convergence to it. Matching its rotation to the killer's
+    // aim therefore aims the whole copy, roll included.
+    private void CaptureBarrel(Transform weaponRoot)
     {
         try
         {
-            var fireport = source?.Fireport?.Original;
-            if (fireport == null) return;
-
-            Vector3 shotDir = fireport.forward;
-            try
+            var fireport = TransformTools.FindTransformRecursive(weaponRoot, "fireport", ignoreCase: true);
+            if (fireport == null)
             {
-                Vector3 local = source.LocalShotDirection;
-                if (local.sqrMagnitude > 0.0001f)
-                    shotDir = fireport.TransformDirection(local);
-            }
-            catch
-            {
-                // ProceduralWeaponAnimation is not guaranteed on an observed player
+                _rejectReason = "no fireport under the weapon root";
+                return;
             }
 
-            _localShotDir = weaponRoot.InverseTransformDirection(shotDir).normalized;
-            if (_localShotDir.sqrMagnitude < 0.5f) return;
+            _localShotDir = weaponRoot.InverseTransformDirection(fireport.forward).normalized;
+            if (_localShotDir.sqrMagnitude < 0.5f)
+            {
+                _rejectReason = "degenerate barrel direction";
+                return;
+            }
 
-            Vector3 up = weaponRoot.InverseTransformDirection(fireport.up);
-            if (Vector3.Cross(_localShotDir, up).sqrMagnitude < 0.0001f)
-                up = Mathf.Abs(_localShotDir.y) < 0.9f ? Vector3.up : Vector3.forward;
+            if (!MatchesGeometry(out string mismatch))
+            {
+                _rejectReason = mismatch;
+                return;
+            }
 
-            _aimToPivot = Quaternion.Inverse(Quaternion.LookRotation(_localShotDir, up));
+            _aimToPivot = Quaternion.Inverse(Quaternion.Inverse(weaponRoot.rotation) * fireport.rotation);
             _aimLocked = true;
         }
         catch (System.Exception ex)
         {
+            _rejectReason = ex.Message;
             Plugin.Instance.Logger.LogWarning($"Killer weapon ghost: barrel capture failed ({ex.Message})");
         }
+    }
+
+    // A firearm is long along its barrel, so when an elongated copy's long axis
+    // disagrees with the fireport, that fireport does not describe these meshes —
+    // a pooled view picked up by the inactive fallback, or a hierarchy caught
+    // mid-swap. Compact copies (a pistol is nearly as tall as it is long) carry no
+    // such signal and are left alone.
+    private bool MatchesGeometry(out string mismatch)
+    {
+        mismatch = null;
+        if (!_hasBounds) return true;
+
+        Vector3 extents = _localBounds.extents;
+        int longest = (extents.x >= extents.y && extents.x >= extents.z) ? 0 : (extents.y >= extents.z ? 1 : 2);
+        float second = 0f;
+        for (int i = 0; i < 3; i++)
+        {
+            if (i != longest && extents[i] > second)
+                second = extents[i];
+        }
+        if (extents[longest] < second * 1.5f) return true;
+
+        var axis = Vector3.zero;
+        axis[longest] = 1f;
+        float angle = Vector3.Angle(_localShotDir, axis);
+        angle = Mathf.Min(angle, 180f - angle);
+        if (angle <= 50f) return true;
+
+        mismatch = $"fireport {angle:F0}° off the long mesh axis";
+        return false;
     }
 
     public void SetPose(Vector3 position, Quaternion recordedRotation, Quaternion aim, Vector3 eyePosition)
     {
         if (_pivot == null) return;
 
-        Quaternion rotation = _aimLocked ? aim * _aimToPivot : recordedRotation;
+        Quaternion rotation = aim * _aimToPivot;
 
-        if (_aimLocked && !_loggedAlignment)
+        if (!_loggedAlignment)
         {
             _loggedAlignment = true;
             Plugin.Instance.Logger.LogInfo(
