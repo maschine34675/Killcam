@@ -42,7 +42,7 @@ At the end of the recorded path (the kill moment) the replay does not end abrupt
 fade to black (~0.2 s), under full black the scene switches to the live world (puppet
 removed, hidden bots and your own corpse visible again — only the killer stays hidden),
 fade back, then the camera follows **the killer's eyes live** for `LiveTailSeconds`
-(default 2 s) (`FollowKillerInTail`; fallback: last replay position if he has died in the
+(default 5 s) (`FollowKillerInTail`; fallback: last replay position if he has died in the
 meantime). Afterwards the replay itself fades to black and holds black until the re-invoked
 `LocalGame.Stop` has raised its own blackscreen (detected via
 `DeferStopPatch.StopReinvokedAt` + 1.5 s; emergency timeout 5 s) — so the corpse cam never
@@ -114,6 +114,8 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
 | Replay.UseRealModelGhost | true | Real character model instead of silhouette (automatic fallback) |
 | Replay.HideLiveBots | true | Hide living bots during the replay |
 | Replay.InvertPitch | false | Invert vertical view direction (in case the camera tilts the wrong way) |
+| Replay.WaitForReplayBeforeRespawn | true | A respawn during the death replay waits until the replay has faded out (not in ArenaMode raids) |
+| Replay.SkipKey | Space | Skip the running replay; a waiting respawn or raid end follows behind a short fade to black |
 | Debug.ReplayKey | F9 | Immediately play a replay of the nearest bot (testing without dying) |
 
 ## Known limitations (prototype)
@@ -173,6 +175,25 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
   replay itself does not change on it yet, and the deferred-Stop hand-off stays, because a
   Killed stop can still follow a claimed death (give-up, match end). A body retired by a live
   swap that dies later no longer starts a replay: only the current `MainPlayer` counts.
+  Since 0.9.9 a respawn **waits for the replay** (`WaitForReplayBeforeRespawn`, on by default),
+  the respawn counterpart of the deferred `Stop`: choosing Respawn in Redeploy's prompt while the
+  replay runs no longer cuts it. The replay plays its live tail, fades to black, and the
+  respawn runs under that black; the new view fades in. Mechanism: a postfix on
+  `Redeploy.Core`'s `RespawnEngine.RunRespawn` (resolved by name, no compile dependency) wraps the
+  pipeline coroutine in a wait for the replay's hand-off, only when the request replaces the
+  replay's victim. The wait is capped (the same bound as the deferred Stop), ends early when the
+  raid is ending, and never applies in ArenaMode raids (`ArenaSession.ReplaySeconds` is Arena's
+  timing contract). If the Core members are missing, the hold stays off and a respawn cuts the
+  replay as before. The **skip key** (`SkipKey`, Space; works while other keys are held) ends the
+  replay at any time; a waiting respawn or raid end then follows right away behind the fade to
+  black. The hold starts when Redeploy actually starts the respawn, i.e. after its own
+  `RespawnCooldownSeconds`: skipping during that cooldown simply ends the replay, and the respawn
+  follows when the cooldown is over. If the raid ends or the cap runs out while a respawn waits,
+  the hold lets go and the replay ends like one nobody waits for. The pure hand-off state and
+  decisions are `src/Replay/RespawnHandoff.cs`, checked offline by `tools/HandoffChecks`
+  (`dotnet run --project tools/HandoffChecks -c Release`; `HANDOFF_CHECKS_PASSED`, or
+  `HANDOFF_CHECKS_PARTIAL` with exit code 3 when the built Core or the game is not found), which
+  also reads the Core members the hold binds to from the built Core.
 
 ## Build
 

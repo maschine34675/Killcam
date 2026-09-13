@@ -24,8 +24,19 @@ public class ReplayController : MonoBehaviour
     public const float LeadIn = 0.8f;
     public const float TailBuffer = 0.7f;
     public const float EndFadeDuration = 0.2f;
+    public const float RevealDuration = 0.35f;
 
     public static Player PendingReplayKiller;
+
+    // A respawn of the death replay's victim waits for the replay (HoldRespawnPatch).
+    private readonly RespawnHandoff _handoff = new();
+
+    // Fade back in from black after a replacement took over under the replay's black
+    // hold. -1 = no reveal; otherwise the frame EndPlayback ran in (the replacement's
+    // own frame, usually a long one), and _revealStart the time the fade begins.
+    private int _revealArmedFrame = -1;
+    private float _revealStart = -1f;
+    private int _deathReplayGeneration;
 
     private static readonly System.Reflection.FieldInfo _corpseField =
         HarmonyLib.AccessTools.Field(typeof(Player), "Corpse");
@@ -121,6 +132,82 @@ public class ReplayController : MonoBehaviour
     {
         if (Plugin.DebugReplayKey.Value.IsDown())
             TryStartDebugReplay();
+
+        if (_playing && SkipKeyPressed())
+            SkipPlayback();
+    }
+
+    // Not KeyboardShortcut.IsDown(): that refuses to fire while ANY other key is held, and a
+    // player who just died is often still holding a movement or sprint key.
+    private static bool SkipKeyPressed()
+    {
+        var shortcut = Plugin.SkipReplayKey.Value;
+        if (shortcut.MainKey == KeyCode.None || !Input.GetKeyDown(shortcut.MainKey))
+            return false;
+        foreach (var modifier in shortcut.Modifiers)
+        {
+            if (!Input.GetKey(modifier))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Asked every frame by HoldRespawnPatch while a replacement of <paramref name="body"/>
+    /// waits. True keeps the respawn waiting for this death replay.
+    /// </summary>
+    public bool HoldReplacementOf(Player body)
+        => PendingReplayKiller != null && _handoff.ShouldHold(body);
+
+    public bool ReplacementWaiting => _handoff.ReplacementWaiting;
+
+    /// <summary>The hold gave up by itself (raid ending, cap): nothing waits for the black any more.</summary>
+    public void AbandonHeldReplacement() => _handoff.AbandonWaiting();
+
+    /// <summary>The released pipeline runs from here (true) until it has finished (false).</summary>
+    public void SetReplacementRunning(bool running)
+    {
+        if (running) _handoff.BeginRunning();
+        else _handoff.EndRunning();
+    }
+
+    /// <summary>Raid start: no replay of a previous raid may hold anything or leave a reveal behind.</summary>
+    public void ResetHandoffForNewRaid()
+    {
+        if (_playing) return;   // a replay cannot run across a raid start; never cut one short here
+        _handoff.EndDeathReplay();
+        _revealArmedFrame = -1;
+        _revealStart = -1f;
+    }
+
+    /// <summary>
+    /// The skip key. When something takes over the screen after the replay (a deferred
+    /// Stop or a waiting respawn), jump to the final fade so that hand-off still happens
+    /// under black; otherwise just end the replay and give the view back.
+    /// </summary>
+    private void SkipPlayback()
+    {
+        switch (RespawnHandoff.DecideSkip(
+                    ReplayPatches.DeferStopPatch.StopWasDeferred,
+                    _handoff.ReplacementWaiting,
+                    _inEnding && (_endPhase == EndingPhase.FinalFade || _endPhase == EndingPhase.HoldBlack)))
+        {
+            case RespawnHandoff.SkipAction.EndNow:
+                EndPlayback("skipped");
+                break;
+            case RespawnHandoff.SkipAction.FadeToBlack:
+                Plugin.Instance.Logger.LogInfo("Replay skipped — handing off under black");
+                EnterFinalFade();
+                break;
+        }
+    }
+
+    private void EnterFinalFade()
+    {
+        _inEnding = true;
+        _endPhase = EndingPhase.FinalFade;
+        _phaseClock = 0f;
+        ReadyForStop = true;
     }
 
     private void Play(Snapshot[] killerPath, Snapshot[] victimPath, BoneWindow boneWindow,
@@ -142,6 +229,8 @@ public class ReplayController : MonoBehaviour
         _phaseClock = 0f;
         _startTime = _cameraPath.StartTime;
         _victimBody = puppetSourcePlayer;
+        _revealArmedFrame = -1;
+        _revealStart = -1f;
         _camera = CameraManager.Instance?.Camera;
         _playing = _camera != null && killerPath.Length >= 2;
 
@@ -179,6 +268,15 @@ public class ReplayController : MonoBehaviour
 
     private void EndPlayback(string reason)
     {
+        // Ending under the replay's own black (a replacement took over, or it did not come):
+        // fade the view in instead of cutting to it. A re-invoked Stop has the game's own
+        // black screen up by then, which needs no reveal.
+        if (_inEnding && _endPhase == EndingPhase.HoldBlack && ReplayPatches.DeferStopPatch.StopReinvokedAt <= 0f)
+        {
+            _revealArmedFrame = Time.frameCount;
+            _revealStart = -1f;
+        }
+
         _playing = false;
         _inEnding = false;
         _cutToLive = false;
@@ -225,6 +323,7 @@ public class ReplayController : MonoBehaviour
             || !ReferenceEquals(previousBody, _victimBody))
             return;
 
+        // Under the black hold, EndPlayback arms the fade-in for the new body.
         StopPlayback($"replacement ({reason})");
     }
 
@@ -321,16 +420,16 @@ public class ReplayController : MonoBehaviour
             case EndingPhase.LiveHold:
                 if (_phaseClock >= Plugin.LiveTailSeconds.Value)
                 {
-                    if (ReplayPatches.DeferStopPatch.StopWasDeferred)
+                    if (RespawnHandoff.FadeToBlackAfterLiveTail(
+                            ReplayPatches.DeferStopPatch.StopWasDeferred, _handoff.ReplacementWaiting))
                     {
-                        _endPhase = EndingPhase.FinalFade;
-                        _phaseClock = 0f;
-                        ReadyForStop = true;
+                        // a deferred Stop or a waiting respawn takes over under black
+                        EnterFinalFade();
                     }
                     else
                     {
-                        // no deferred Stop owns the raid end (e.g. a respawn mod
-                        // intercepted the death) — hand the camera back directly
+                        // nothing waits (the respawn prompt is still open, or no respawn
+                        // mod is involved) — hand the camera back directly
                         EndPlayback("live tail complete");
                         return;
                     }
@@ -342,18 +441,33 @@ public class ReplayController : MonoBehaviour
                 {
                     _endPhase = EndingPhase.HoldBlack;
                     _phaseClock = 0f;
+                    // Fully black now: a waiting respawn may run. The hold sees the release
+                    // next frame, the pipeline runs synchronously, and its Replaced ends
+                    // this playback (NotifyBodyReplaced) with the screen still black.
+                    if (_handoff.ReplacementWaiting)
+                    {
+                        Plugin.Instance.Logger.LogInfo("Replay handed off — releasing the held respawn under black");
+                        _handoff.ReleaseUnderBlack();
+                    }
                 }
                 break;
 
             case EndingPhase.HoldBlack:
                 // 1.5s after the re-invoke: the game's own black screen fades in and
                 // was empirically not fully opaque yet at 0.8s (brief corpse-cam flash)
-                float reinvokedAt = ReplayPatches.DeferStopPatch.StopReinvokedAt;
-                bool gameBlackUp = reinvokedAt > 0f && Time.time - reinvokedAt >= 1.5f;
-                if (gameBlackUp || _phaseClock >= 5f)
+                switch (RespawnHandoff.DecideBlackHoldExit(
+                            Time.time, _phaseClock, ReplayPatches.DeferStopPatch.StopReinvokedAt,
+                            _handoff.ReplacementReleased, _handoff.ReplacementRunning))
                 {
-                    EndPlayback(gameBlackUp ? "handed off under black screen" : "black hold timeout");
-                    return;
+                    case RespawnHandoff.BlackHoldExit.HandedOffUnderGameBlack:
+                        EndPlayback("handed off under black screen");
+                        return;
+                    case RespawnHandoff.BlackHoldExit.ReplacementDidNotArrive:
+                        EndPlayback("released respawn did not arrive");
+                        return;
+                    case RespawnHandoff.BlackHoldExit.Timeout:
+                        EndPlayback("black hold timeout");
+                        return;
                 }
                 break;
         }
@@ -529,6 +643,14 @@ public class ReplayController : MonoBehaviour
     public IEnumerator RunDeathReplay(Player deadPlayer, Snapshot[] killerPath, Snapshot[] victimPath,
         BoneWindow boneWindow, List<float> shots, List<float> victimShots, string killerName)
     {
+        // From here until the loop below ends, a respawn of this body waits for the replay.
+        // Not a try/finally around the yields: Unity never disposes a stopped coroutine, so
+        // a finally would promise more than it keeps. The hold itself is bounded instead
+        // (HoldRespawnPatch caps the wait and also requires PendingReplayKiller).
+        // The generation keeps a superseded run from clearing what a newer death replay set.
+        int generation = ++_deathReplayGeneration;
+        _handoff.BeginDeathReplay(deadPlayer);
+
         yield return new WaitForSeconds(LeadIn);
 
         // The corpse IS the original dressed body (converted in place), so it is the
@@ -541,14 +663,21 @@ public class ReplayController : MonoBehaviour
             puppetSource = corpse != null ? corpse.gameObject : deadPlayer.gameObject;
         }
 
+        if (generation != _deathReplayGeneration)
+            yield break;   // a newer death replay took over during the lead-in
+
         Play(killerPath, victimPath, boneWindow, puppetSource, deadPlayer, PendingReplayKiller, shots, victimShots, killerName, withLiveTail: true);
-        while (_playing)
+        while (_playing && generation == _deathReplayGeneration)
             yield return null;
+
+        if (generation != _deathReplayGeneration)
+            yield break;   // superseded: the newer run owns these fields now
 
         // safety: if Play never started (camera missing), EndPlayback never ran and
         // the deferred Stop would otherwise wait for its timeout cap
         ReadyForStop = true;
         PendingReplayKiller = null;
+        _handoff.EndDeathReplay();
     }
 
     private void TryStartDebugReplay()
@@ -620,7 +749,11 @@ public class ReplayController : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!_playing) return;
+        if (!_playing)
+        {
+            DrawReveal();
+            return;
+        }
 
         if (_labelStyle == null)
         {
@@ -644,6 +777,16 @@ public class ReplayController : MonoBehaviour
 
         float baseY = Screen.height * Plugin.HudTopFraction.Value;
         GUI.Label(new Rect(0, baseY, Screen.width, 34), $"KILLCAM — {_killerName}", _labelStyle);
+
+        // Skip hint above the title; the black of the ending covers the lines below it anyway.
+        var skipKey = Plugin.SkipReplayKey.Value;
+        if (skipKey.MainKey != KeyCode.None)
+        {
+            string hint = _handoff.ReplacementWaiting
+                ? $"Respawn after the replay — [{skipKey}] skip"
+                : $"[{skipKey}] skip";
+            GUI.Label(new Rect(0, baseY - 26, Screen.width, 24), hint, _timeStyle);
+        }
 
         // video-player style position: seconds until the kill moment, then LIVE
         if (_cutToLive)
@@ -680,6 +823,29 @@ public class ReplayController : MonoBehaviour
                 GUI.color = prev;
             }
         }
+    }
+
+    // After the replay ended under its own black hold: stay black through that frame and
+    // the next (a long replacement frame would otherwise eat the fade), then fade the view
+    // in. Bounded by RevealDuration, never sticky (RespawnHandoff.RevealAlpha).
+    private void DrawReveal()
+    {
+        if (_revealArmedFrame < 0 || Event.current.type != EventType.Repaint) return;
+
+        float alpha = RespawnHandoff.RevealAlpha(
+            Time.frameCount, _revealArmedFrame, Time.unscaledTime, ref _revealStart, RevealDuration);
+
+        if (alpha <= 0f)
+        {
+            _revealArmedFrame = -1;
+            _revealStart = -1f;
+            return;
+        }
+
+        var prev = GUI.color;
+        GUI.color = new Color(0f, 0f, 0f, Mathf.Clamp01(alpha));
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.color = prev;
     }
 
     private float CurrentFadeAlpha()

@@ -14,7 +14,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.9.8";
+    public const string PluginVersion = "0.9.9";
 
     public static Plugin Instance;
 
@@ -35,6 +35,8 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<bool> ShowKillerWeapon;
     public static ConfigEntry<float> SlowMoSeconds;
     public static ConfigEntry<float> SlowMoFactor;
+    public static ConfigEntry<bool> WaitForReplayBeforeRespawn;
+    public static ConfigEntry<KeyboardShortcut> SkipReplayKey;
     public static ConfigEntry<KeyboardShortcut> DebugReplayKey;
 
     public static SnapshotRecorder Recorder;
@@ -84,6 +86,10 @@ public class Plugin : BaseUnityPlugin
             new ConfigDescription("Play the last N seconds before the kill in slow motion (0 = off)", new AcceptableValueRange<float>(0f, 5f)));
         SlowMoFactor = Config.Bind("Replay", "SlowMoFactor", 0.35f,
             new ConfigDescription("Playback speed during the slow-motion window", new AcceptableValueRange<float>(0.1f, 1f)));
+        WaitForReplayBeforeRespawn = Config.Bind("Replay", "WaitForReplayBeforeRespawn", true,
+            "When a respawn mod (Redeploy) respawns you while your death replay is still running, wait until the replay has finished: it fades to black, then you respawn. Off: the respawn cuts the replay. ArenaMode raids keep their own timing.");
+        SkipReplayKey = Config.Bind("Replay", "SkipKey", new KeyboardShortcut(KeyCode.Space),
+            "Skip the running replay. A waiting respawn or raid end then follows right away behind a short fade to black.");
         DebugReplayKey = Config.Bind("Debug", "ReplayKey", new KeyboardShortcut(KeyCode.F9),
             "Play a replay of the nearest bot (for testing without dying)");
 
@@ -99,6 +105,7 @@ public class Plugin : BaseUnityPlugin
         RespawnTracker.BodyChanged += (previous, current, reason) => ReplayCtrl.NotifyBodyReplaced(previous, current, reason);
 
         ReplayPatches.Enable();
+        HoldRespawnPatch.TryApply();   // retried at every raid start if Core loads later
 
         Logger.LogInfo($"{PluginName} {PluginVersion} loaded");
     }

@@ -59,3 +59,20 @@ Dieselben Harmony-Pitfalls wie in `C:\SPT\Development\KillAndDamageInfo\CLAUDE.m
   laufen: dort nur `StopPlayback` (fasst weder `PlayerCameraController` noch Bodies an), nie
   einen Respawn starten, den Raid stoppen oder einen Body zerstören. Im `OnDead`-Postfix gilt
   `ReferenceEquals(MainPlayer, __instance)` statt nur `IsYourPlayer`.
+- **Respawn-Hold** (seit 0.9.9, `src/Patches/HoldRespawnPatch.cs`): Postfix auf
+  `Redeploy.Core.Engine.RespawnEngine.RunRespawn` (per Name, kein Compile-Bezug) ersetzt die
+  zurückgegebene Coroutine durch „warten, dann Original schrittweise". Nur für den Body des
+  laufenden Todes-Replays, nie in ArenaMode-Raids, gedeckelt wie der Deferred-Stop. Die
+  Zustandslogik steht rein in `src/Replay/RespawnHandoff.cs` (keine Unity-Typen) und wird
+  offline von `tools/HandoffChecks` geprüft (`dotnet run --project tools/HandoffChecks -c Release`,
+  Token `HANDOFF_CHECKS_PASSED`, ohne Core-Build `HANDOFF_CHECKS_PARTIAL` mit Exit 3; baut nichts
+  ins Spiel). Ablauf: Live-Tail → FinalFade → HoldBlack → Freigabe → Pipeline läuft synchron →
+  `BodyChanged` beendet das Replay → Fade-in. Gibt der Hold selbst auf (Raid endet, Deckel),
+  ruft er `AbandonWaiting`, damit das Replay nicht für einen Respawn schwarz wird, der nicht kommt.
+  Neue Zustandsentscheidungen gehören in `RespawnHandoff` (rein, testbar), nicht in den
+  MonoBehaviour. Skip-Taste nicht über `KeyboardShortcut.IsDown()` prüfen: das feuert nicht,
+  solange irgendeine andere Taste gehalten wird.
+  Unity disposed gestoppte Coroutinen nicht: keine `finally`-Aufräumlogik um `yield`s, stattdessen
+  Deckel und Generationszähler in `RunDeathReplay`.
+- **Tools-Ordner**: `KillcamReplay.csproj` schließt `tools\**` aus; sonst kompiliert der SDK-Glob
+  die Prüfprogramme ins Plugin.

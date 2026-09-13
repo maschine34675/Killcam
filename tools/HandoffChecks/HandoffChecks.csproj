@@ -1,0 +1,28 @@
+<!-- Offline checks for the respawn hold (README, "Respawn compatibility"): the pure hand-off
+     state from src/Replay/RespawnHandoff.cs, linked unchanged, and the Redeploy.Core members
+     HoldRespawnPatch resolves by name, read as metadata from the built Core next to this repo.
+     No Shared.props, no project references: building or running this deploys nothing.
+     Run it with dotnet run (project tools/HandoffChecks, Release). -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <IsPackable>false</IsPackable>
+    <ProductionHandoffSource Condition="'$(ProductionHandoffSource)' == ''">..\..\src\Replay\RespawnHandoff.cs</ProductionHandoffSource>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(ProductionHandoffSource)" Link="Production\RespawnHandoff.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

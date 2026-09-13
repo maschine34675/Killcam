@@ -35,6 +35,8 @@ public static class ReplayPatches
             Plugin.Recorder.ResetForNewRaid();
             DeferStopPatch.StopWasDeferred = false;
             DeferStopPatch.StopReinvokedAt = 0f;
+            Plugin.ReplayCtrl.ResetHandoffForNewRaid();
+            HoldRespawnPatch.TryApply();
         }
     }
 
