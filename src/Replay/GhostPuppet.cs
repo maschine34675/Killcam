@@ -154,7 +154,8 @@ public class GhostPuppet
 
             if (copied == 0)
             {
-                Plugin.Instance.Logger.LogWarning("Puppet weapon: no meshes found to copy");
+                // expected whenever nothing is held, e.g. right after an unarmed respawn
+                Plugin.Instance.Logger.LogInfo("Puppet weapon: no weapon meshes in hands, showing the puppet unarmed");
                 Object.Destroy(pivot.gameObject);
                 return;
             }
