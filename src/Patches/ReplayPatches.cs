@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using Comfort.Common;
 using EFT;
 using HarmonyLib;
 using KillcamReplay.Replay;
@@ -73,6 +74,12 @@ public static class ReplayPatches
             {
                 if (!__instance.IsYourPlayer) return;
 
+                // IsYourPlayer stays true on every body the local profile ever had. Only the
+                // current MainPlayer is the local player's death; a body retired by a live
+                // swap (ArenaMode kit swap) that dies later is not.
+                if (!Singleton<GameWorld>.Instantiated
+                    || !ReferenceEquals(Singleton<GameWorld>.Instance.MainPlayer, __instance)) return;
+
                 if (!Plugin.DeathReplayActive) return;
 
                 // Most arena modes respawn instantly, and a replay would play over
@@ -110,8 +117,14 @@ public static class ReplayPatches
                 }
                 var boneWindow = Plugin.Recorder.Bones.ExtractWindow(from, now);
 
+                // RespawnApi v1: true = a respawn driver holds this death open, false = Core will
+                // not replace this body, null = unknown (no Core, older Core, Fika). Logged only
+                // for now; the replay runs the same either way (the Stop hand-off below covers a
+                // Killed Stop that may still follow, and a replacement ends playback itself).
+                bool? respawnPending = Plugin.RespawnTracker?.IsRespawnPending(__instance);
+
                 Plugin.Instance.Logger.LogInfo(
-                    $"Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}");
+                    $"Death replay: killer={killer.Profile?.Nickname}, {path.Length} snapshots, window [{path[0].Time:F2} .. {path[path.Length - 1].Time:F2}], death at {now:F2}, respawnPending={(respawnPending.HasValue ? respawnPending.Value.ToString() : "unknown")}");
 
                 Plugin.ReplayCtrl.StopPlayback("superseded by death replay");
 

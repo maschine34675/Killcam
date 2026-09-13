@@ -1,6 +1,7 @@
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using KillcamReplay.Interop;
 using KillcamReplay.Patches;
 using KillcamReplay.Recording;
 using KillcamReplay.Replay;
@@ -13,7 +14,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.9.7";
+    public const string PluginVersion = "0.9.8";
 
     public static Plugin Instance;
 
@@ -38,6 +39,9 @@ public class Plugin : BaseUnityPlugin
 
     public static SnapshotRecorder Recorder;
     public static ReplayController ReplayCtrl;
+
+    // Internal: the interop type is internal by design (copied source, one per mod).
+    internal static LocalBodyTracker RespawnTracker;
 
     // The KillAndDamageInfo live killcam also owns the death sequence (deferred
     // Stop + camera swap). Two owners fight over the camera, so the death replay
@@ -85,6 +89,14 @@ public class Plugin : BaseUnityPlugin
 
         Recorder = gameObject.AddComponent<SnapshotRecorder>();
         ReplayCtrl = gameObject.AddComponent<ReplayController>();
+
+        // RespawnApi v1 of maschine-Redeploy.Core (Redeploy docs/RESPAWN-API.md, section 7),
+        // through the copied interop file: bound by reflection when Core is installed,
+        // MainPlayer polling otherwise. A replacement of the replay's victim ends the replay
+        // in the frame it happens, while the old camera still exists.
+        RespawnTracker = gameObject.AddComponent<LocalBodyTracker>();
+        RespawnTracker.Log = message => Logger.LogInfo("[Respawn] " + message);
+        RespawnTracker.BodyChanged += (previous, current, reason) => ReplayCtrl.NotifyBodyReplaced(previous, current, reason);
 
         ReplayPatches.Enable();
 

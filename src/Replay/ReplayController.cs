@@ -60,6 +60,9 @@ public class ReplayController : MonoBehaviour
     private float _phaseClock;
     private string _killerName;
     private Camera _camera;
+    // The body this playback shows as the victim: the dead local player of a death
+    // replay, the living one of the F9 replay. Its replacement ends the playback.
+    private Player _victimBody;
     private GUIStyle _labelStyle;
     private GUIStyle _shotStyle;
     private GUIStyle _timeStyle;
@@ -138,6 +141,7 @@ public class ReplayController : MonoBehaviour
         _endPhase = EndingPhase.FadeOutCut;
         _phaseClock = 0f;
         _startTime = _cameraPath.StartTime;
+        _victimBody = puppetSourcePlayer;
         _camera = CameraManager.Instance?.Camera;
         _playing = _camera != null && killerPath.Length >= 2;
 
@@ -190,6 +194,7 @@ public class ReplayController : MonoBehaviour
         _ghostFlash = null;
         _killerWeapon?.Destroy();
         _killerWeapon = null;
+        _victimBody = null;
         _hider.RestoreAll();
         Plugin.Instance.Logger.LogInfo($"Playback end after {_clock:F2}s: {reason}");
     }
@@ -198,6 +203,29 @@ public class ReplayController : MonoBehaviour
     {
         if (_playing)
             EndPlayback(reason);
+    }
+
+    /// <summary>
+    /// The local body changed (RespawnInterop BodyChanged). When the replaced body is this
+    /// playback's victim, a respawn has taken over the screen: end now, in the frame of the
+    /// replacement. With Redeploy.Core that frame still has the old camera (its Destroy is
+    /// deferred to the end of the frame), so no pose lands on a dying camera and the hidden
+    /// renderers come back at once. Without Core the poll reports a frame later and the
+    /// camera-null check in LateUpdate may win; both end the same way.
+    /// EndPlayback touches no PlayerCameraController and no body, which is what a
+    /// BodyChanged handler may do (it can run inside Core's replacement pipeline).
+    /// A change to no body is the raid ending, not a replacement: the replay keeps the
+    /// raid-end hand-off it already owns (deferred Stop, HoldBlack).
+    /// </summary>
+    public void NotifyBodyReplaced(Player previousBody, Player currentBody, string reason)
+    {
+        if (!_playing
+            || ReferenceEquals(previousBody, null)
+            || ReferenceEquals(currentBody, null)
+            || !ReferenceEquals(previousBody, _victimBody))
+            return;
+
+        StopPlayback($"replacement ({reason})");
     }
 
     private void LateUpdate()

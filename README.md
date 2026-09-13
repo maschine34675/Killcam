@@ -164,6 +164,15 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
   replay in the same round would fail with "Killer track too short". The `BoneRecorder`
   detects a character switch (new player GameObject after respawn) and reinitializes itself
   automatically. Verified in-game with Redeploy (multiple deaths/replays in one round).
+  Since 0.9.8 the mod consumes `RespawnApi` v1 of `maschine-Redeploy.Core` through a copy of
+  Redeploy's interop file (`src/Interop/RedeployRespawnInterop.cs`, namespace changed only;
+  re-copy it from the Redeploy repo, never edit it). When the replay's victim body is
+  replaced, the playback ends in that same frame ("Playback end ...: replacement (death)")
+  instead of a frame later on the destroyed camera ("camera destroyed", still the fallback
+  without Core). The death log line also reports `respawnPending` (true/false/unknown); the
+  replay itself does not change on it yet, and the deferred-Stop hand-off stays, because a
+  Killed stop can still follow a claimed death (give-up, match end). A body retired by a live
+  swap that dies later no longer starts a replay: only the current `MainPlayer` counts.
 
 ## Build
 

@@ -52,3 +52,10 @@ Dieselben Harmony-Pitfalls wie in `C:\SPT\Development\KillAndDamageInfo\CLAUDE.m
 - **Koexistenz**: Death-Replay deaktiviert sich automatisch, wenn
   `com.local.killanddamageinfo` geladen ist (dessen Live-Killcam besitzt die Todessequenz).
 - Postfixes in Gameplay-Pfaden (OnDead, OnMakingShot) immer in try/catch.
+- **RespawnApi-Interop** (seit 0.9.8): `src/Interop/RedeployRespawnInterop.cs` ist eine Kopie
+  aus dem Redeploy-Repo (`interop/`), nur der Namespace ist geändert. Nie von Hand ändern,
+  bei neuen Interop-Versionen neu kopieren. `LocalBodyTracker` ist `internal`; Felder dieses
+  Typs müssen `internal` sein (CS0052). `BodyChanged` kann mitten in Cores Ersetzungs-Pipeline
+  laufen: dort nur `StopPlayback` (fasst weder `PlayerCameraController` noch Bodies an), nie
+  einen Respawn starten, den Raid stoppen oder einen Body zerstören. Im `OnDead`-Postfix gilt
+  `ReferenceEquals(MainPlayer, __instance)` statt nur `IsYourPlayer`.
