@@ -13,7 +13,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.9.5";
+    public const string PluginVersion = "0.9.6";
 
     public static Plugin Instance;
 

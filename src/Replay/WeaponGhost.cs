@@ -16,7 +16,8 @@ namespace KillcamReplay.Replay;
 // replay. The fireport gives the true barrel frame at capture time and sits under
 // the same weapon root, so it stays valid for the frozen copy and lets the pivot
 // be rebuilt from the aim each frame. Without such a frame the weapon is not shown
-// at all — placing it by the recorded track alone is what hung it upside down.
+// at all — orienting it by the recorded track alone is what left it pointing at
+// the ceiling.
 public class WeaponGhost
 {
     // beyond this the recorded position is not a weapon in someone's hands any more
@@ -47,11 +48,10 @@ public class WeaponGhost
                 return null;
             }
 
-            // Without a barrel frame the copy could only be placed by the recorded
-            // track — exactly what hung weapons upside down when the killer was
-            // holstering or swapping at capture time. Showing nothing is better:
-            // the shot flash then uses its camera-relative position, which is
-            // oriented by the aim and always right.
+            // Without a barrel frame the copy could only be oriented by the recorded
+            // track, which does not carry the aim. Showing nothing is better: the
+            // shot flash then uses its camera-relative position, which is oriented
+            // by the aim and always right.
             if (!ghost._aimLocked)
             {
                 Plugin.Instance.Logger.LogInfo(
@@ -109,9 +109,14 @@ public class WeaponGhost
     // holstering, drawing or has just dropped it, which is precisely when the copy
     // ended up in a strange pose. A fireport found under the root we just copied
     // belongs to these meshes by construction (PlayerBones.FindFireport does the
-    // same lookup), and EFT fires along its forward axis: LocalShotDirection only
-    // adds the iron-sight convergence to it. Matching its rotation to the killer's
-    // aim therefore aims the whole copy, roll included.
+    // same lookup).
+    //
+    // EFT weapon rigs shoot along -Y with +Z up, not along Unity's forward: the
+    // shot direction defaults to Vector3.down in fireport space
+    // (ProceduralWeaponAnimation._shotDirection), CalculateShotDirectionForIron
+    // returns (0, -1, zeroing tilt), and the line-of-sight code maps weapon-space
+    // points to (-y, z) as (downrange, up). The fireport's +Z is therefore the
+    // weapon's vertical — taking it as the barrel put the copy exactly 90° off.
     private void CaptureBarrel(Transform weaponRoot)
     {
         try
@@ -123,10 +128,11 @@ public class WeaponGhost
                 return;
             }
 
-            _localShotDir = weaponRoot.InverseTransformDirection(fireport.forward).normalized;
-            if (_localShotDir.sqrMagnitude < 0.5f)
+            _localShotDir = weaponRoot.InverseTransformDirection(-fireport.up).normalized;
+            Vector3 localUp = weaponRoot.InverseTransformDirection(fireport.forward).normalized;
+            if (_localShotDir.sqrMagnitude < 0.5f || localUp.sqrMagnitude < 0.5f)
             {
-                _rejectReason = "degenerate barrel direction";
+                _rejectReason = "degenerate fireport frame";
                 return;
             }
 
@@ -136,7 +142,8 @@ public class WeaponGhost
                 return;
             }
 
-            _aimToPivot = Quaternion.Inverse(Quaternion.Inverse(weaponRoot.rotation) * fireport.rotation);
+            // barrel onto the aim's forward, weapon up onto the aim's up
+            _aimToPivot = Quaternion.Inverse(Quaternion.LookRotation(_localShotDir, localUp));
             _aimLocked = true;
         }
         catch (System.Exception ex)
