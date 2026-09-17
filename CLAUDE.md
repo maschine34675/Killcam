@@ -3,11 +3,12 @@
 ## Build & Deploy
 
 ```bash
-cd C:\SPT\Development\KillcamReplay
+cd D:\SPT41\Development\KillcamReplay
 dotnet build -c Debug
 ```
 
-Post-build kopiert DLL + PDB automatisch nach `C:\SPT\BepInEx\plugins\`.
+Post-build kopiert DLL + PDB automatisch nach `D:\SPT41\BepInEx\plugins\` (`SPTPath` in
+`Shared.props` = zwei Ebenen über dem Repo).
 
 ## Projekt
 
@@ -21,8 +22,8 @@ Architektur, Performance-Budget und bekannte Einschränkungen.
 
 ## Wichtige Muster
 
-Dieselben Harmony-Pitfalls wie in `C:\SPT\Development\KillAndDamageInfo\CLAUDE.md`
-(dekompilierte Quelle: `C:\SPT\Development\decompiled\Assembly-CSharp`). Insbesondere:
+Dieselben Harmony-Pitfalls wie in `D:\SPT41\Development\KillAndDamageInfo\CLAUDE.md`
+(dekompilierte Quelle: `D:\SPT41\Development\_decompiled`). Insbesondere:
 
 - **Deferred Stop**: `LocalGame.Stop()` per Prefix (return false) aufschieben, Re-Invoke
   mit `_isReentry`-Flag nach dem Replay. Sonst schwarzer Screen + State-Zerstörung.
