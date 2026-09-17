@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <Compile Include="$(ProductionHandoffSource)" Link="Production\RespawnHandoff.cs" />
+    <Compile Include="..\..\src\Patches\StaleSamplerRegistry.cs" Link="Production\StaleSamplerRegistry.cs" />
   </ItemGroup>
 
   <ItemGroup>

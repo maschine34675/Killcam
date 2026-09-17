@@ -94,6 +94,11 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
 - **Memory:** 32 bytes/snapshot × 20 Hz × 15 s ≈ 9.6 KB per player; with 40 players ≈ 385 KB.
   The bone recorder (local player only) takes a few MB depending on skeleton size
   (logged at raid start).
+- **No scene searches on respawn cameras (0.9.10):** the PerfectCulling sampler fix finds the
+  stale sampler from the samplers it saw starting and the sampler's own static instance. The
+  earlier `FindObjectsOfType` walked the whole scene each time a respawn mod rebuilt the camera
+  and grew with every corpse a long raid keeps (about 300 ms per call late in a 25-minute
+  Arena raid, measured with Redeploy.Core 1.0.2).
 
 ## Configuration (BepInEx F12 / config file)
 

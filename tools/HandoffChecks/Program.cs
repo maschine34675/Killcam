@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using KillcamReplay.Patches;
 using KillcamReplay.Replay;
 
 // Offline checks for the respawn hold. Exit code 0 and HANDOFF_CHECKS_PASSED on a full pass;
@@ -23,6 +24,7 @@ internal static class Program
         CheckSkip();
         CheckBlackHoldExit();
         CheckReveal();
+        CheckStaleSamplers();
         var coreChecked = CheckCoreMembers();
 
         if (!coreChecked)
@@ -191,6 +193,54 @@ internal static class Program
             "a re-invoked Stop wins over the released-respawn grace");
         Check(RespawnHandoff.DecideBlackHoldExit(now, 1.9f, now - 1.6f, true, false) == RespawnHandoff.BlackHoldExit.HandedOffUnderGameBlack,
             "and ends under the game's black");
+    }
+
+    // ------------------------------------------------------------------ stale samplers
+
+    /// <summary>
+    /// FixPerfectCullingSamplerPatch finds stale samplers from the ones it saw starting plus the
+    /// sampler's static Instance instead of a scene search. The registry is a copy of Redeploy.Core's;
+    /// when that repo sits next to this one, the copy must still match it apart from the namespace.
+    /// </summary>
+    private static void CheckStaleSamplers()
+    {
+        var alive = new HashSet<object>();
+        var registry = new StaleSamplerRegistry(alive.Contains);
+        var old = new object();
+        var fresh = new object();
+        alive.Add(old);
+        alive.Add(fresh);
+
+        Check(registry.TakeStale(old, null).Count == 0, "the first sampler of a raid has nothing stale");
+        var stale = registry.TakeStale(fresh, old);
+        Check(stale.Count == 1 && stale[0] == old, "a respawn camera's sampler finds the one it replaces, once");
+        alive.Remove(old);                                  // the prefix destroyed it
+        Check(registry.TakeStale(fresh, fresh).Count == 0, "the starting sampler is never stale, even as Instance");
+
+        var unseen = new object();
+        alive.Add(unseen);
+        var next = new object();
+        alive.Add(next);
+        stale = registry.TakeStale(next, unseen);
+        Check(stale.Count == 2 && stale.Contains(fresh) && stale.Contains(unseen) && !stale.Contains(old),
+            "earlier live samplers and an unseen Instance are stale, a destroyed one is forgotten");
+
+        var master = Path.Combine(FindRepoRoot(), "..", "Redeploy", "Redeploy.Core", "Compat", "StaleSamplerRegistry.cs");
+        if (!File.Exists(master))
+            return;
+        var copy = Path.Combine(FindRepoRoot(), "src", "Patches", "StaleSamplerRegistry.cs");
+        Check(CodeBody(File.ReadAllText(master)) == CodeBody(File.ReadAllText(copy)),
+            "src/Patches/StaleSamplerRegistry.cs still matches Redeploy.Core/Compat/StaleSamplerRegistry.cs (namespace and comments aside)");
+    }
+
+    /// <summary>The code after the namespace line, comment lines and blank lines dropped.</summary>
+    private static string CodeBody(string source)
+    {
+        var lines = source.Replace("\r\n", "\n").Split('\n');
+        var start = Array.FindIndex(lines, line => line.StartsWith("namespace "));
+        return string.Join("\n", lines.Skip(start + 1)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && !line.StartsWith("//")));
     }
 
     // ------------------------------------------------------------------ Core members

@@ -229,10 +229,17 @@ public static class ReplayPatches
     // The PlayerCameraController Destroy/Create cycle leaves a stale PerfectCulling
     // sampler behind; a second sampler starting during Stop() cleanup throws
     // PerfectCullingException (4.0: GException8). DestroyImmediate the stale ones. Idempotent alongside the same
-    // patch in KillAndDamageInfo.
+    // patch in KillAndDamageInfo and Redeploy.Core.
+    // The stale ones come from the samplers seen starting plus the sampler's static Instance, not from
+    // FindObjectsOfType: that walked the whole scene on every respawn camera and grew with every corpse
+    // a long raid keeps (Redeploy docs/RESPAWN-API.md, "Messraid 17.09.2026").
     public class FixPerfectCullingSamplerPatch : ModulePatch
     {
         private static System.Type _samplerType;
+        private static PropertyInfo _instanceProperty;
+
+        private static readonly StaleSamplerRegistry Started =
+            new StaleSamplerRegistry(sampler => sampler is Object unity && unity != null);
 
         protected override MethodBase GetTargetMethod()
         {
@@ -243,6 +250,7 @@ public static class ReplayPatches
                 return null;
             }
 
+            _instanceProperty = AccessTools.Property(_samplerType, "Instance");
             return AccessTools.Method(_samplerType, "Start");
         }
 
@@ -251,11 +259,16 @@ public static class ReplayPatches
         {
             if (_samplerType == null) return;
 
-            var existing = Object.FindObjectsOfType(_samplerType);
-            foreach (var obj in existing)
+            try
             {
-                if (obj != __instance)
-                    Object.DestroyImmediate(obj);
+                var current = _instanceProperty?.GetValue(null, null);
+                foreach (Object stale in Started.TakeStale(__instance, current))
+                    Object.DestroyImmediate(stale);
+            }
+            catch (System.Exception ex)
+            {
+                // Never cost the sampler its Start: without it the map is not culled at all.
+                Plugin.Instance.Logger.LogWarning($"Stale PerfectCulling sampler check failed: {ex.Message}");
             }
         }
     }
