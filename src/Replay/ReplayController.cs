@@ -59,6 +59,8 @@ public class ReplayController : MonoBehaviour
     private List<float> _victimShots;
     private ShotFlash _killerFlash;
     private ShotFlash _ghostFlash;
+    private ShotTracers _killerTracers;
+    private ShotTracers _ghostTracers;
     private WeaponGhost _killerWeapon;
     private float _nextHiderRefresh;
     private float _clock;
@@ -255,10 +257,12 @@ public class ReplayController : MonoBehaviour
             if (Plugin.HideLiveBots.Value)
                 _hider.HideAll();
 
-            if (Plugin.ShowMuzzleFlashes.Value)
+            if (Plugin.ShowShotLines.Value)
             {
                 _killerFlash = new ShotFlash();
                 _ghostFlash = new ShotFlash();
+                _killerTracers = ShotTracers.TryCreate("KillcamReplayKillerShots");
+                _ghostTracers = ShotTracers.TryCreate("KillcamReplayVictimShots");
             }
 
             Application.onBeforeRender -= ApplyCurrentPose;
@@ -290,6 +294,10 @@ public class ReplayController : MonoBehaviour
         _killerFlash = null;
         _ghostFlash?.Destroy();
         _ghostFlash = null;
+        _killerTracers?.Destroy();
+        _killerTracers = null;
+        _ghostTracers?.Destroy();
+        _ghostTracers = null;
         _killerWeapon?.Destroy();
         _killerWeapon = null;
         _victimBody = null;
@@ -543,15 +551,16 @@ public class ReplayController : MonoBehaviour
             _ghost.UpdatePose(victimSnap);
         }
 
-        UpdateShotFlashes(t);
+        UpdateShotEffects(t);
     }
 
-    // Brief 3D flashes at recorded shot times, always oriented along the SHOOTER'S
-    // recorded aim: the killer's at his weapon's muzzle (his eyes are the camera),
-    // the victim's at the puppet weapon's. The weapon pivots carry a view
-    // container's world pose whose local axes do not follow the barrel, so only
-    // the aim tells the elongated flash which way to point (see WeaponMuzzle).
-    private void UpdateShotFlashes(float t)
+    // Shot lines plus a brief muzzle light at recorded shot times, both taken from
+    // the SHOOTER's recorded aim: the killer's eyes are the camera and his weapon
+    // ghost's muzzle the origin; the victim's aim comes from their own recorded
+    // path, the source the puppet/ghost is posed from. The weapon pivots' local
+    // axes do not follow the barrel, so only the aim gives the direction (see
+    // WeaponMuzzle).
+    private void UpdateShotEffects(float t)
     {
         if (_killerFlash == null) return;
 
@@ -559,43 +568,52 @@ public class ReplayController : MonoBehaviour
         {
             _killerFlash.Hide();
             _ghostFlash.Hide();
+            _killerTracers?.Hide();
+            _ghostTracers?.Hide();
             return;
         }
 
+        var tr = _camera.transform;
+        Vector3 cameraPos = tr.position;
+        Quaternion killerAim = tr.rotation;
+
+        // prefer the actual muzzle of the killer's weapon ghost if it's showing
+        if (_killerWeapon == null || !_killerWeapon.TryGetMuzzle(killerAim, out var killerMuzzle, out _))
+            killerMuzzle = cameraPos + tr.forward * 0.55f - tr.up * 0.22f;
+
+        _killerTracers?.Update(_shots, t, true, killerMuzzle, cameraPos, killerAim, cameraPos);
         if (AnyShotActive(_shots, t))
-        {
-            var tr = _camera.transform;
-
-            // prefer the actual muzzle of the killer's weapon ghost if it's showing
-            if (_killerWeapon != null && _killerWeapon.TryGetMuzzle(tr.rotation, out var killerMuzzle, out var killerDir))
-                _killerFlash.ShowAt(killerMuzzle, killerDir);
-            else
-                _killerFlash.ShowAt(tr.position + tr.forward * 0.55f - tr.up * 0.22f, tr.rotation);
-        }
+            _killerFlash.ShowAt(killerMuzzle);
         else
-        {
             _killerFlash.Hide();
-        }
 
-        // the victim's aim comes from their own recorded path, the same source the
-        // ghost/puppet is posed from
-        if (AnyShotActive(_victimShots, t) && _victimPath != null)
+        bool victimArmed = false;
+        Vector3 victimMuzzle = default;
+        Vector3 victimEye = default;
+        Quaternion victimAim = Quaternion.identity;
+        if (_victimPath != null && _victimShots != null && _victimShots.Count > 0)
         {
             var s = _victimPath.Sample(t);
             float ghostPitch = Plugin.InvertPitch.Value ? -s.Pitch : s.Pitch;
-            var viewRot = Quaternion.Euler(ghostPitch, s.Yaw, 0f);
+            victimAim = Quaternion.Euler(ghostPitch, s.Yaw, 0f);
+            victimEye = s.CamPos;
 
-            if (_puppet != null && _puppet.TryGetMuzzle(viewRot, out var muzzle, out var muzzleRot))
-                _ghostFlash.ShowAt(muzzle, muzzleRot);
+            if (_puppet != null)
+            {
+                victimArmed = _puppet.TryGetMuzzle(victimAim, out victimMuzzle, out _);
+            }
             else if (_ghost != null)
-                _ghostFlash.ShowAt(s.CamPos + viewRot * Vector3.forward * 0.6f, viewRot);
-            else
-                _ghostFlash.Hide();
+            {
+                victimMuzzle = s.CamPos + victimAim * Vector3.forward * 0.6f;
+                victimArmed = true;
+            }
         }
+
+        _ghostTracers?.Update(_victimShots, t, victimArmed, victimMuzzle, victimEye, victimAim, cameraPos);
+        if (victimArmed && AnyShotActive(_victimShots, t))
+            _ghostFlash.ShowAt(victimMuzzle);
         else
-        {
             _ghostFlash.Hide();
-        }
     }
 
     private static bool AnyShotActive(List<float> shots, float t)
@@ -636,6 +654,8 @@ public class ReplayController : MonoBehaviour
         _puppet?.Destroy();
         _killerFlash?.Destroy();
         _ghostFlash?.Destroy();
+        _killerTracers?.Destroy();
+        _ghostTracers?.Destroy();
         _killerWeapon?.Destroy();
         _hider.RestoreAll();
     }

@@ -16,7 +16,7 @@ body pose (`PoseLevel`, `IsInPronePose`) and the world pose of the held weapon
 (`PlayerBones.WeaponRoot.Original`) into a ring buffer (default 15 s). Shots are marked with
 a timestamp via a postfix on `Player.OnMakingShot`. During the replay, a script-free mesh
 copy of the killer's weapon (`WeaponGhost`) travels along its recorded track in front of the
-camera — you can see what he aims with and where; the muzzle flash sits at its muzzle.
+camera — you can see what he aims with and where; his shot lines start at its muzzle.
 
 **Replay (on death):**
 `Player.OnDead` provides the killer (`LastAggressor`). The window of the last N seconds
@@ -112,7 +112,7 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
 | Replay.SlowMoFactor | 0.35 | Playback speed inside the slow-motion window |
 | Replay.FollowKillerInTail | true | Follow the killer live during the tail instead of staying static |
 | Replay.HudTopFraction | 0.87 | Vertical position of the killcam HUD (fraction of screen height from the top) |
-| Replay.ShowMuzzleFlashes | true | 3D muzzle flashes at recorded shot timestamps |
+| Replay.ShowShotLines | true | Red shot line + brief muzzle light at recorded shot timestamps |
 | Replay.ShowKillerWeapon | true | Mesh copy of the killer's weapon travels its recorded track in front of the camera |
 | Replay.DeathReplay | true | Replay on your own death |
 | Replay.ShowVictimGhost | true | Show your own silhouette (ghost) in the replay |
@@ -139,12 +139,17 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
   slots, WeaponRoot) are disabled as well. Your own corpse/live body (the puppet source) is
   also hidden as soon as the clone is up. Additional actors as ghosts (e.g. the killer in a
   third-person view) would be a later extension.
-- **Muzzle flash = approximation** — at recorded shot timestamps a point light + stretched
-  glow ellipsoid appears in shot direction for ~70 ms (`ShotFlash`; Unity has no cone
-  primitive): killer shots just in front of/below the camera (his eyes ARE the camera, his
-  weapon is not rendered), own shots at the estimated muzzle of the puppet weapon (furthest
-  +Z extent of the copied meshes). No particle effect, no sound. Can be disabled via
-  `ShowMuzzleFlashes`.
+- **Shot lines = aim, not ballistics** — at each recorded shot timestamp a red line
+  (`ShotTracers`, pooled `LineRenderer`s) runs from the shooter's muzzle to the point where
+  a ray from his eyes along his recorded aim meets the world
+  (`LayersMaskController.HighPolyWithTerrainMask`, i.e. walls and terrain, not bodies) —
+  the point a zeroed sight converges on. It stays where it was fired and fades over 0.4 s
+  of replay time, so slow motion stretches it; its width follows the camera distance so it
+  stays a few pixels wide near and far. Spread, recoil and the 20 Hz sampling are not in
+  the aim: a line shows where the shooter pointed, not a confirmed hit. The killer's lines
+  start at his weapon ghost's muzzle (below the camera if none is shown), your own at the
+  puppet weapon's. A point light at the muzzle flashes for ~70 ms per shot (`ShotFlash`).
+  No particle effect, no sound. Can be disabled via `ShowShotLines`.
 - **Hidden bots are re-swept every 0.5 s** (`RefreshHidden`): reloading and weapon switching
   create NEW view objects mid-replay (magazine in the hand, round, different weapon) that
   did not exist at the initial hide and would otherwise be visible, floating freely.

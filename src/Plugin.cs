@@ -14,7 +14,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.9.10";
+    public const string PluginVersion = "0.9.11";
 
     public static Plugin Instance;
 
@@ -31,7 +31,7 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<bool> HideLiveBots;
     public static ConfigEntry<bool> InvertPitch;
     public static ConfigEntry<float> HudTopFraction;
-    public static ConfigEntry<bool> ShowMuzzleFlashes;
+    public static ConfigEntry<bool> ShowShotLines;
     public static ConfigEntry<bool> ShowKillerWeapon;
     public static ConfigEntry<float> SlowMoSeconds;
     public static ConfigEntry<float> SlowMoFactor;
@@ -78,8 +78,8 @@ public class Plugin : BaseUnityPlugin
             "Invert vertical look direction in the replay (in case the camera tilts the wrong way)");
         HudTopFraction = Config.Bind("Replay", "HudTopFraction", 0.87f,
             new ConfigDescription("Vertical position of the killcam HUD as a fraction of screen height from the top (place it below/above the vanilla death panel)", new AcceptableValueRange<float>(0f, 0.9f)));
-        ShowMuzzleFlashes = Config.Bind("Replay", "ShowMuzzleFlashes", true,
-            "Show 3D muzzle flashes at recorded shot times (killer's shots in front of the camera, your own at the ghost's weapon)");
+        ShowShotLines = Config.Bind("Replay", "ShowShotLines", true,
+            "Show a red line for every recorded shot, from the shooter's muzzle to where his aim met a surface, plus a brief muzzle light (the killer's shots and your own)");
         ShowKillerWeapon = Config.Bind("Replay", "ShowKillerWeapon", true,
             "Show a mesh copy of the killer's weapon riding its recorded path in front of the camera");
         SlowMoSeconds = Config.Bind("Replay", "SlowMoSeconds", 1.5f,
