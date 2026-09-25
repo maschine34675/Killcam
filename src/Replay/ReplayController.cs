@@ -261,8 +261,8 @@ public class ReplayController : MonoBehaviour
             {
                 _killerFlash = new ShotFlash();
                 _ghostFlash = new ShotFlash();
-                _killerTracers = ShotTracers.TryCreate("KillcamReplayKillerShots");
-                _ghostTracers = ShotTracers.TryCreate("KillcamReplayVictimShots");
+                _killerTracers = ShotTracers.TryCreate("KillcamReplayKillerShots", ShotTracers.KillerColor);
+                _ghostTracers = ShotTracers.TryCreate("KillcamReplayVictimShots", ShotTracers.VictimColor);
             }
 
             Application.onBeforeRender -= ApplyCurrentPose;

@@ -14,7 +14,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.9.11";
+    public const string PluginVersion = "0.9.12";
 
     public static Plugin Instance;
 
@@ -79,7 +79,7 @@ public class Plugin : BaseUnityPlugin
         HudTopFraction = Config.Bind("Replay", "HudTopFraction", 0.87f,
             new ConfigDescription("Vertical position of the killcam HUD as a fraction of screen height from the top (place it below/above the vanilla death panel)", new AcceptableValueRange<float>(0f, 0.9f)));
         ShowShotLines = Config.Bind("Replay", "ShowShotLines", true,
-            "Show a red line for every recorded shot, from the shooter's muzzle to where his aim met a surface, plus a brief muzzle light (the killer's shots and your own)");
+            "Show a line for every recorded shot, from the shooter's muzzle to where his aim met a surface, plus a brief muzzle light (the killer's shots in red, your own in cyan)");
         ShowKillerWeapon = Config.Bind("Replay", "ShowKillerWeapon", true,
             "Show a mesh copy of the killer's weapon riding its recorded path in front of the camera");
         SlowMoSeconds = Config.Bind("Replay", "SlowMoSeconds", 1.5f,

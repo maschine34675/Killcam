@@ -3,9 +3,11 @@ using UnityEngine;
 
 namespace KillcamReplay.Replay;
 
-// Red shot lines at recorded shot times. Each shot draws a straight line from the
-// shooter's muzzle to the point his recorded aim met: the first wall, floor or
-// terrain along the ray from his eyes, the same point a zeroed sight converges on.
+// Shot lines at recorded shot times — red for the killer, cyan for the victim's own
+// shots, so the two directions of fire never read alike. Each shot draws a straight
+// line from the shooter's muzzle to the point his recorded aim met: the first wall,
+// floor or terrain along the ray from his eyes, the same point a zeroed sight
+// converges on.
 // A line stays where its shot was fired and fades out over LineSeconds of REPLAY
 // time, so slow motion stretches it along with everything else; rapid fire shows
 // several at once.
@@ -25,26 +27,39 @@ public class ShotTracers
     private const float MinWidthDistance = 0.3f;
     private const int PoolSize = 6;
 
-    private static readonly Color LineColor = new(1f, 0.08f, 0.05f, 0.9f);
+    public static readonly Color KillerColor = new(1f, 0.08f, 0.05f, 0.9f);
+    public static readonly Color VictimColor = new(0.05f, 0.9f, 1f, 0.9f);
+
     private static Material _material;
     private static bool _vertexColored;
 
     private readonly GameObject _root;
+    private readonly Color _color;
+    private readonly Material _ownMaterial;
     private readonly LineRenderer[] _lines = new LineRenderer[PoolSize];
     private readonly AnimationCurve[] _widths = new AnimationCurve[PoolSize];
     private readonly int[] _shot = new int[PoolSize];
     private readonly Vector3[] _from = new Vector3[PoolSize];
     private readonly Vector3[] _to = new Vector3[PoolSize];
 
-    public static ShotTracers TryCreate(string name)
+    public static ShotTracers TryCreate(string name, Color color)
     {
         var material = GetMaterial();
-        return material != null ? new ShotTracers(name, material) : null;
+        return material != null ? new ShotTracers(name, color, material) : null;
     }
 
-    private ShotTracers(string name, Material material)
+    private ShotTracers(string name, Color color, Material material)
     {
         _root = new GameObject(name);
+        _color = color;
+
+        // a fallback shader without vertex colours takes the colour from the material
+        if (!_vertexColored)
+        {
+            _ownMaterial = new Material(material) { color = color };
+            material = _ownMaterial;
+        }
+
         for (int i = 0; i < PoolSize; i++)
         {
             var go = new GameObject("ShotLine");
@@ -68,7 +83,7 @@ public class ShotTracers
     {
         if (_material != null) return _material;
 
-        // unlit and vertex-coloured, so the line stays red in any light and can fade
+        // unlit and vertex-coloured, so a line keeps its colour in any light and can fade
         Shader shader = Shader.Find("Sprites/Default")
             ?? Shader.Find("Legacy Shaders/Particles/Alpha Blended")
             ?? Shader.Find("Unlit/Color")
@@ -80,7 +95,7 @@ public class ShotTracers
         }
 
         _vertexColored = shader.name is "Sprites/Default" or "Legacy Shaders/Particles/Alpha Blended";
-        _material = new Material(shader) { color = _vertexColored ? Color.white : LineColor };
+        _material = new Material(shader) { color = Color.white };
         Plugin.Instance.Logger.LogInfo($"Shot line shader: {shader.name}");
         return _material;
     }
@@ -150,7 +165,7 @@ public class ShotTracers
         if (_vertexColored)
         {
             float fade = Mathf.Clamp01((LineSeconds - age) / FadeSeconds);
-            var color = LineColor;
+            var color = _color;
             color.a *= fade;
             line.startColor = color;
             line.endColor = color;
@@ -220,5 +235,7 @@ public class ShotTracers
     {
         if (_root != null)
             Object.Destroy(_root);
+        if (_ownMaterial != null)
+            Object.Destroy(_ownMaterial);
     }
 }

@@ -112,7 +112,7 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
 | Replay.SlowMoFactor | 0.35 | Playback speed inside the slow-motion window |
 | Replay.FollowKillerInTail | true | Follow the killer live during the tail instead of staying static |
 | Replay.HudTopFraction | 0.87 | Vertical position of the killcam HUD (fraction of screen height from the top) |
-| Replay.ShowShotLines | true | Red shot line + brief muzzle light at recorded shot timestamps |
+| Replay.ShowShotLines | true | Shot line (killer red, own cyan) + brief muzzle light at recorded shot timestamps |
 | Replay.ShowKillerWeapon | true | Mesh copy of the killer's weapon travels its recorded track in front of the camera |
 | Replay.DeathReplay | true | Replay on your own death |
 | Replay.ShowVictimGhost | true | Show your own silhouette (ghost) in the replay |
@@ -139,8 +139,9 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
   slots, WeaponRoot) are disabled as well. Your own corpse/live body (the puppet source) is
   also hidden as soon as the clone is up. Additional actors as ghosts (e.g. the killer in a
   third-person view) would be a later extension.
-- **Shot lines = aim, not ballistics** — at each recorded shot timestamp a red line
-  (`ShotTracers`, pooled `LineRenderer`s) runs from the shooter's muzzle to the point where
+- **Shot lines = aim, not ballistics** — at each recorded shot timestamp a line (red for
+  the killer, cyan for your own shots; `ShotTracers`, pooled `LineRenderer`s) runs from
+  the shooter's muzzle to the point where
   a ray from his eyes along his recorded aim meets the world
   (`LayersMaskController.HighPolyWithTerrainMask`, i.e. walls and terrain, not bodies) —
   the point a zeroed sight converges on. It stays where it was fired and fades over 0.4 s
