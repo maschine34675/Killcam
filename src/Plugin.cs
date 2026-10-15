@@ -14,7 +14,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.KillcamReplay";
     public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.9.12";
+    public const string PluginVersion = "0.9.13";
 
     public static Plugin Instance;
 
@@ -63,7 +63,7 @@ public class Plugin : BaseUnityPlugin
         ReplayDuration = Config.Bind("Replay", "Duration", 10f,
             new ConfigDescription("Replay length in seconds", new AcceptableValueRange<float>(2f, 12f)));
         LiveTailSeconds = Config.Bind("Replay", "LiveTailSeconds", 5f,
-            new ConfigDescription("Keep showing the live view for this long after the replay ends (with a short fade transition)", new AcceptableValueRange<float>(0f, 10f)));
+            new ConfigDescription("Keep showing the live view for this long after the replay ends (with a short fade transition). Arena raids use half this duration.", new AcceptableValueRange<float>(0f, 10f)));
         FollowKillerInTail = Config.Bind("Replay", "FollowKillerInTail", true,
             "Follow the killer live during the live tail instead of staying at the last position");
         DeathReplay = Config.Bind("Replay", "DeathReplay", true,

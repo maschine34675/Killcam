@@ -116,6 +116,11 @@ public class ReplayController : MonoBehaviour
         }
     }
 
+    // Only the post-replay live view is shorter in Arena. Use the same value
+    // for the ending phase and its safety bound; never change the saved setting.
+    public static float EffectiveLiveTailSeconds
+        => Plugin.LiveTailSeconds.Value * (ArenaCompat.IsArenaActive() ? 0.5f : 1f);
+
     public static float GetExtraDelay()
     {
         if (PendingReplayKiller == null) return 0f;
@@ -127,7 +132,7 @@ public class ReplayController : MonoBehaviour
             : 0f;
 
         return LeadIn + EffectiveDuration + slowMoExtra
-            + 2f * EndFadeDuration + Plugin.LiveTailSeconds.Value + TailBuffer;
+            + 2f * EndFadeDuration + EffectiveLiveTailSeconds + TailBuffer;
     }
 
     private void Update()
@@ -426,7 +431,7 @@ public class ReplayController : MonoBehaviour
                 break;
 
             case EndingPhase.LiveHold:
-                if (_phaseClock >= Plugin.LiveTailSeconds.Value)
+                if (_phaseClock >= EffectiveLiveTailSeconds)
                 {
                     if (RespawnHandoff.FadeToBlackAfterLiveTail(
                             ReplayPatches.DeferStopPatch.StopWasDeferred, _handoff.ReplacementWaiting))

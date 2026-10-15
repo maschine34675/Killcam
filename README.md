@@ -38,6 +38,10 @@ the live world keeps running normally. Smooth transition over 0.4 s when enterin
 The deferred-stop delay accounts for the stretched wall-clock time.
 
 **Soft ending (live tail):**
+ArenaMode raids use half the configured live-tail duration (normally 2.5 instead
+of 5 seconds). Recorded playback, slow motion and transition fades are unchanged;
+ordinary raids retain the full configured duration. The saved setting is not changed.
+
 At the end of the recorded path (the kill moment) the replay does not end abruptly: a short
 fade to black (~0.2 s), under full black the scene switches to the live world (puppet
 removed, hidden bots and your own corpse visible again — only the killer stays hidden),
