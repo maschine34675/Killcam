@@ -19,7 +19,10 @@ public class ShotTracers
 {
     private const float LineSeconds = 0.4f;
     private const float FadeSeconds = 0.25f;
-    private const float MaxRange = 300f;
+    // Longer than any map's diagonal, so a line only stops short when its aim met
+    // nothing at all (sky). The main camera clips at 10 km (CameraManager), far
+    // beyond this; the single raycast per shot costs the same either way.
+    private const float MaxRange = 2000f;
     // A LineRenderer's width is in world units. Scaling it with the distance to the
     // camera keeps the line about 2.5 px wide at 1080p and 60° FOV, at the muzzle
     // and 50 m out alike.

@@ -145,8 +145,8 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
   third-person view) would be a later extension.
 - **Shot lines = aim, not ballistics** — at each recorded shot timestamp a line (red for
   the killer, cyan for your own shots; `ShotTracers`, pooled `LineRenderer`s) runs from
-  the shooter's muzzle to the point where
-  a ray from his eyes along his recorded aim meets the world
+  the shooter's muzzle to the point where a ray from his eyes along his recorded aim
+  meets the world within 2 km
   (`LayersMaskController.HighPolyWithTerrainMask`, i.e. walls and terrain, not bodies) —
   the point a zeroed sight converges on. It stays where it was fired and fades over 0.4 s
   of replay time, so slow motion stretches it; its width follows the camera distance so it
