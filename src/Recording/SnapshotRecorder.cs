@@ -3,7 +3,7 @@ using Comfort.Common;
 using EFT;
 using UnityEngine;
 
-namespace KillcamReplay.Recording;
+namespace Killcam.Recording;
 
 public struct Snapshot
 {

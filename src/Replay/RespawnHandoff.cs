@@ -1,4 +1,4 @@
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Keeps a respawn of the replay's victim waiting until the death replay has handed
 // the screen over, the same way DeferStopPatch keeps a Killed raid end waiting.

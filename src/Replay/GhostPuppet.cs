@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using EFT;
-using KillcamReplay.Recording;
+using Killcam.Recording;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Real-model replay ghost: a sanitized clone of the victim's body (the corpse IS
 // the original dressed body — Corpse.CreateCorpse converts the player GameObject
@@ -51,7 +51,7 @@ public class GhostPuppet
         _source = source;
         _sourcePlayer = sourcePlayer;
 
-        _holder = new GameObject("KillcamReplayPuppet");
+        _holder = new GameObject("KillcamPuppet");
         _holder.SetActive(false);
 
         // Cloning the body drags along the Odin-serialized item scripts of slot-view

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using EFT;
 using UnityEngine;
 
-namespace KillcamReplay.Recording;
+namespace Killcam.Recording;
 
 // A chronological slice of recorded skeleton poses, extracted once when a replay
 // starts. Paths identify each bone relative to the player root so the puppet can

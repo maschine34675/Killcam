@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace KillcamReplay.Patches;
+namespace Killcam.Patches;
 
 /// <summary>
 /// Which PerfectCulling samplers are stale when another one starts, without searching the scene.

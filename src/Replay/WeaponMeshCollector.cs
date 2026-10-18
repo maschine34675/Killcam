@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Picks the mesh renderers worth copying from a weapon view hierarchy.
 //

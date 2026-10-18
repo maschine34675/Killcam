@@ -1,7 +1,7 @@
 using EFT;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Script-free mesh copy of a player's held weapon (same technique as the puppet's
 // AttachWeaponMeshes) shown in front of the replay camera, so you can see what the
@@ -74,7 +74,7 @@ public class WeaponGhost
 
     private WeaponGhost(Transform weaponRoot)
     {
-        _pivot = new GameObject("KillcamReplayKillerWeapon").transform;
+        _pivot = new GameObject("KillcamKillerWeapon").transform;
         _pivot.gameObject.SetActive(false);
 
         var sourceRenderers = WeaponMeshCollector.Collect(weaponRoot, out _usedInactiveFallback);

@@ -1,7 +1,7 @@
 using System.Reflection;
 using BepInEx.Bootstrap;
 
-namespace KillcamReplay;
+namespace Killcam;
 
 // Soft compatibility with the ArenaMode mod (no compile-time dependency).
 //

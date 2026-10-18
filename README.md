@@ -1,7 +1,28 @@
-# KillcamReplay
+# Killcam
 
-GUID `com.maschine.KillcamReplay`, Assembly `maschine-KillcamReplay` — naming scheme as in
-[EasyMounting](https://github.com/maschine34675/EasyMounting).
+GUID `com.maschine.Killcam`, assembly `maschine-Killcam`.
+
+## Installation and upgrading from KillcamReplay
+
+Install `maschine-Killcam.dll` in `BepInEx/plugins`. Remove any previous
+`maschine-KillcamReplay.dll`, and replace any older `maschine-Killcam.dll`
+(including the separate experimental Killcam 1.0.0). Keep only one copy, also
+checking plugin subfolders. The two implementations must not run together.
+
+Version 0.9.15 renames KillcamReplay without changing playback behavior. On first
+start, `BepInEx/config/com.maschine.KillcamReplay.cfg` is copied to
+`com.maschine.Killcam.cfg` if the new file does not exist. The original is retained;
+an existing new config always wins. If migration fails, Killcam stays disabled
+for that launch and logs the reason instead of saving defaults over your settings.
+
+Update ArenaMode alongside Killcam: older Arena builds look up the previous
+plugin identity. Redeploy.Core's respawn API is unchanged.
+
+The development build deploys through `tools/Deploy-Killcam.ps1`. It refuses
+locked DLLs and archives existing Killcam/KillcamReplay DLLs and symbols beneath
+`BepInEx/killcam-backups`, outside plugin discovery. It does not stop the game.
+The plugin also rejects a simultaneous KillcamReplay installation; this safety
+check is not a substitute for removing old DLLs.
 
 A true killcam for SPT: on death, the final action is played back **from the killer's point
 of view** — not a live view of the killer (as in KillAndDamageInfo), but a replay of the
@@ -221,4 +242,7 @@ offline verification and unchanged clone-logging limitation.
 dotnet build -c Debug
 ```
 
-Automatically copies DLL + PDB to `C:\SPT\BepInEx\plugins\`.
+Automatically deploys DLL + PDB to `BepInEx/plugins` beneath the SPT installation
+two directories above this repository (override `SPTPath` in `Shared.props.user`).
+For an offline build, pass
+`-p:CustomAfterMicrosoftCommonTargets=<absolute repo path>/tools/NoDeploy.targets`.

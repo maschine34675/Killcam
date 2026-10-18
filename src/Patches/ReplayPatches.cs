@@ -3,11 +3,11 @@ using System.Reflection;
 using Comfort.Common;
 using EFT;
 using HarmonyLib;
-using KillcamReplay.Replay;
+using Killcam.Replay;
 using SPT.Reflection.Patching;
 using UnityEngine;
 
-namespace KillcamReplay.Patches;
+namespace Killcam.Patches;
 
 public static class ReplayPatches
 {
@@ -110,7 +110,7 @@ public static class ReplayPatches
                 var shots = track.ExtractShots(from, now);
 
                 // Own recorded path → victim ghost in the replay; bone window → real-model puppet.
-                KillcamReplay.Recording.Snapshot[] victimPath = null;
+                Killcam.Recording.Snapshot[] victimPath = null;
                 System.Collections.Generic.List<float> victimShots = null;
                 if (Plugin.Recorder.TryGetTrack(__instance, out var victimTrack))
                 {

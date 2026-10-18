@@ -1,7 +1,7 @@
-using KillcamReplay.Recording;
+using Killcam.Recording;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Interpolating sampler over a chronological snapshot array. Playback time only
 // moves forward, so the bracketing index is cached and advanced monotonically.

@@ -1,7 +1,7 @@
-using KillcamReplay.Recording;
+using Killcam.Recording;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Translucent primitive silhouette standing in for the recorded victim during
 // playback: capsule body (height follows pose level, lies flat when prone),
@@ -18,7 +18,7 @@ public class ReplayGhost
 
     public ReplayGhost()
     {
-        _root = new GameObject("KillcamReplayGhost");
+        _root = new GameObject("KillcamGhost");
 
         _body = CreatePart(PrimitiveType.Capsule);
         _head = CreatePart(PrimitiveType.Sphere);

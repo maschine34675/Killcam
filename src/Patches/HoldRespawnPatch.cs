@@ -3,10 +3,10 @@ using System.Collections;
 using System.Reflection;
 using EFT;
 using HarmonyLib;
-using KillcamReplay.Replay;
+using Killcam.Replay;
 using UnityEngine;
 
-namespace KillcamReplay.Patches;
+namespace Killcam.Patches;
 
 // Holds a respawn of the death replay's victim until the replay has handed the screen
 // over, the respawn counterpart of DeferStopPatch. Redeploy.Core runs every respawn
@@ -26,7 +26,7 @@ namespace KillcamReplay.Patches;
 public static class HoldRespawnPatch
 {
     private const string EngineTypeName = "Redeploy.Core.Engine.RespawnEngine, maschine-Redeploy.Core";
-    private const string HarmonyId = "com.maschine.KillcamReplay.HoldRespawn";
+    private const string HarmonyId = "com.maschine.Killcam.HoldRespawn";
 
     private static bool _applied;
     private static bool _contractWarned;

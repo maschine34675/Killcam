@@ -1,20 +1,21 @@
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using KillcamReplay.Interop;
-using KillcamReplay.Patches;
-using KillcamReplay.Recording;
-using KillcamReplay.Replay;
+using Killcam.Interop;
+using Killcam.Patches;
+using Killcam.Recording;
+using Killcam.Replay;
 using UnityEngine;
 
-namespace KillcamReplay;
+namespace Killcam;
 
 [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+[BepInIncompatibility("com.maschine.KillcamReplay")]
 public class Plugin : BaseUnityPlugin
 {
-    public const string PluginGuid = "com.maschine.KillcamReplay";
-    public const string PluginName = "maschine-KillcamReplay";
-    public const string PluginVersion = "0.9.14";
+    public const string PluginGuid = "com.maschine.Killcam";
+    public const string PluginName = "maschine-Killcam";
+    public const string PluginVersion = "0.9.15";
 
     public static Plugin Instance;
 
@@ -55,6 +56,24 @@ public class Plugin : BaseUnityPlugin
     public void Awake()
     {
         Instance = this;
+
+        // BepInEx has opened the new GUID's ConfigFile, but has not saved it yet.
+        // Reload the copied settings before the first Bind can write defaults.
+        try
+        {
+            if (ConfigMigration.CopyLegacyIfMissing(Config.ConfigFilePath))
+            {
+                Config.Reload();
+                Logger.LogInfo("Killcam imported the existing KillcamReplay settings; the original file was retained.");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            // Do not bind/save defaults over a copied file that could not be read.
+            enabled = false;
+            Logger.LogError($"Killcam is disabled because settings migration failed. The original settings were retained; check config permissions and restart: {ex.Message}");
+            return;
+        }
 
         SampleRate = Config.Bind("Recording", "SampleRate", 20,
             new ConfigDescription("Recording rate in Hz", new AcceptableValueRange<int>(5, 60)));

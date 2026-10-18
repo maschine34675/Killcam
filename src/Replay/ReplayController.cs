@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using Comfort.Common;
 using EFT;
 using EFT.CameraControl;
-using KillcamReplay.Patches;
-using KillcamReplay.Recording;
+using Killcam.Patches;
+using Killcam.Recording;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Plays a recorded camera path on the main camera and moves a translucent ghost
 // along the victim's recorded path. While a death replay owns the raid-end
@@ -266,8 +266,8 @@ public class ReplayController : MonoBehaviour
             {
                 _killerFlash = new ShotFlash();
                 _ghostFlash = new ShotFlash();
-                _killerTracers = ShotTracers.TryCreate("KillcamReplayKillerShots", ShotTracers.KillerColor);
-                _ghostTracers = ShotTracers.TryCreate("KillcamReplayVictimShots", ShotTracers.VictimColor);
+                _killerTracers = ShotTracers.TryCreate("KillcamKillerShots", ShotTracers.KillerColor);
+                _ghostTracers = ShotTracers.TryCreate("KillcamVictimShots", ShotTracers.VictimColor);
             }
 
             Application.onBeforeRender -= ApplyCurrentPose;

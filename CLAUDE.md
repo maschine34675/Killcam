@@ -3,12 +3,17 @@
 ## Build & Deploy
 
 ```bash
-cd D:\SPT41\Development\KillcamReplay
+cd D:\SPT41\Development\Killcam
 dotnet build -c Debug
 ```
 
 Post-build kopiert DLL + PDB automatisch nach `D:\SPT41\BepInEx\plugins\` (`SPTPath` in
 `Shared.props` = zwei Ebenen über dem Repo).
+Seit 0.9.15 übernimmt `tools/Deploy-Killcam.ps1` das Einspielen: alte Killcam-
+und KillcamReplay-Dateien werden außerhalb von `plugins` gesichert; gesperrte
+Dateien brechen das Deployment vor Änderungen ab. Die Config-Migration steht in
+`src/ConfigMigration.cs` und läuft vor dem ersten Bind, ohne neue Configs zu überschreiben.
+Offline bauen: `-p:CustomAfterMicrosoftCommonTargets=<absoluter Pfad>/tools/NoDeploy.targets`.
 
 ## Projekt
 
@@ -75,5 +80,5 @@ Dieselben Harmony-Pitfalls wie in `D:\SPT41\Development\KillAndDamageInfo\CLAUDE
   solange irgendeine andere Taste gehalten wird.
   Unity disposed gestoppte Coroutinen nicht: keine `finally`-Aufräumlogik um `yield`s, stattdessen
   Deckel und Generationszähler in `RunDeathReplay`.
-- **Tools-Ordner**: `KillcamReplay.csproj` schließt `tools\**` aus; sonst kompiliert der SDK-Glob
+- **Tools-Ordner**: `Killcam.csproj` schließt `tools\**` aus; sonst kompiliert der SDK-Glob
   die Prüfprogramme ins Plugin.

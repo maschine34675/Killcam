@@ -13,7 +13,7 @@ using Comfort.Common;
 using EFT;
 using UnityEngine;
 
-namespace KillcamReplay.Interop
+namespace Killcam.Interop
 {
     /// <summary>Add once to your plugin's own GameObject: gameObject.AddComponent&lt;LocalBodyTracker&gt;().</summary>
     internal sealed class LocalBodyTracker : MonoBehaviour

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Shared muzzle estimate for the copied weapon meshes of the puppet and of the
 // killer's weapon ghost.

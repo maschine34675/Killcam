@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Shot lines at recorded shot times — red for the killer, cyan for the victim's own
 // shots, so the two directions of fire never read alike. Each shot draws a straight

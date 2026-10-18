@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // A brief muzzle light at a recorded shot's muzzle: a point light shown for a few
 // frames, lighting up the surroundings the way a real muzzle flash does. The shot
@@ -11,7 +11,7 @@ public class ShotFlash
 
     public ShotFlash()
     {
-        _root = new GameObject("KillcamReplayShotFlash");
+        _root = new GameObject("KillcamShotFlash");
 
         var light = _root.AddComponent<Light>();
         light.type = LightType.Point;

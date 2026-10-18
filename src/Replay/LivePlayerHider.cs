@@ -3,7 +3,7 @@ using Comfort.Common;
 using EFT;
 using UnityEngine;
 
-namespace KillcamReplay.Replay;
+namespace Killcam.Replay;
 
 // Hides the renderers AND light sources of all live players/bots during playback
 // so present-time actors don't walk through a scene that shows the past. Purely

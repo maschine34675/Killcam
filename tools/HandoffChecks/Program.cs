@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Reflection;
-using KillcamReplay.Patches;
-using KillcamReplay.Replay;
+using Killcam.Patches;
+using Killcam.Replay;
 
 // Offline checks for the respawn hold. Exit code 0 and HANDOFF_CHECKS_PASSED on a full pass;
 // exit code 3 and HANDOFF_CHECKS_PARTIAL when the Core member check could not run.
@@ -303,8 +303,8 @@ internal static class Program
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "KillcamReplay.csproj")))
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Killcam.csproj")))
             directory = directory.Parent;
-        return directory?.FullName ?? throw new InvalidOperationException("KillcamReplay.csproj not found above " + AppContext.BaseDirectory);
+        return directory?.FullName ?? throw new InvalidOperationException("Killcam.csproj not found above " + AppContext.BaseDirectory);
     }
 }
