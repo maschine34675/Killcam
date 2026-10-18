@@ -4,7 +4,7 @@ Replays the last seconds before your death from the killer's recorded viewpoint.
 The raid continues in the background; after playback, the normal death screen
 or a compatible mod's respawn takes over.
 
-Current version: **0.9.15**, formerly **KillcamReplay**.
+Current version: **1.0.0**, formerly **KillcamReplay**.
 
 ## Features
 
@@ -40,9 +40,10 @@ Current version: **0.9.15**, formerly **KillcamReplay**.
 1. Close EFT.
 2. Place `maschine-Killcam.dll` in `BepInEx/plugins` under your SPT installation.
 3. Keep only one copy, including plugin subfolders. Remove
-   `maschine-KillcamReplay.dll` and replace any older `maschine-Killcam.dll`,
-   including the separate experimental **Killcam 1.0.0**.
-4. Start EFT. The BepInEx log should show `maschine-Killcam 0.9.15 loaded`.
+   `maschine-KillcamReplay.dll` and replace any existing `maschine-Killcam.dll`,
+   including the earlier, separate experimental **Killcam 1.0.0**. That prototype
+   shares this release's version number and GUID but is a different implementation.
+4. Start EFT. The BepInEx log should show `maschine-Killcam 1.0.0 loaded`.
 
 On the first renamed launch, Killcam copies
 `BepInEx/config/com.maschine.KillcamReplay.cfg` to

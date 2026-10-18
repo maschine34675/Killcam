@@ -15,7 +15,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "com.maschine.Killcam";
     public const string PluginName = "maschine-Killcam";
-    public const string PluginVersion = "0.9.15";
+    public const string PluginVersion = "1.0.0";
 
     public static Plugin Instance;
 

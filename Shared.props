@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>0.9.15</Version>
+    <Version>1.0.0</Version>
     <SPTPath>$(MSBuildThisFileDirectory)..\..</SPTPath>
     <AssemblySearchPaths>
       $(SPTPath)\EscapeFromTarkov_Data\Managed;
