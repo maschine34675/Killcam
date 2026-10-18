@@ -12,7 +12,7 @@ namespace Killcam.Replay;
 // Plays a recorded camera path on the main camera and moves a translucent ghost
 // along the victim's recorded path. While a death replay owns the raid-end
 // sequence, PendingReplayKiller is non-null and LocalGame.Stop() is deferred
-// (see ReplayPatches.DeferStopPatch).
+// (see ReplayPatches.KillcamDeferStopPatch).
 //
 // No PlayerCameraController is destroyed or created: destroying it detaches the
 // EffectsController from the player (its death handler then NullRefs and aborts
@@ -195,7 +195,7 @@ public class ReplayController : MonoBehaviour
     private void SkipPlayback()
     {
         switch (RespawnHandoff.DecideSkip(
-                    ReplayPatches.DeferStopPatch.StopWasDeferred,
+                    ReplayPatches.KillcamDeferStopPatch.StopWasDeferred,
                     _handoff.ReplacementWaiting,
                     _inEnding && (_endPhase == EndingPhase.FinalFade || _endPhase == EndingPhase.HoldBlack)))
         {
@@ -280,7 +280,7 @@ public class ReplayController : MonoBehaviour
         // Ending under the replay's own black (a replacement took over, or it did not come):
         // fade the view in instead of cutting to it. A re-invoked Stop has the game's own
         // black screen up by then, which needs no reveal.
-        if (_inEnding && _endPhase == EndingPhase.HoldBlack && ReplayPatches.DeferStopPatch.StopReinvokedAt <= 0f)
+        if (_inEnding && _endPhase == EndingPhase.HoldBlack && ReplayPatches.KillcamDeferStopPatch.StopReinvokedAt <= 0f)
         {
             _revealArmedFrame = Time.frameCount;
             _revealStart = -1f;
@@ -434,7 +434,7 @@ public class ReplayController : MonoBehaviour
                 if (_phaseClock >= EffectiveLiveTailSeconds)
                 {
                     if (RespawnHandoff.FadeToBlackAfterLiveTail(
-                            ReplayPatches.DeferStopPatch.StopWasDeferred, _handoff.ReplacementWaiting))
+                            ReplayPatches.KillcamDeferStopPatch.StopWasDeferred, _handoff.ReplacementWaiting))
                     {
                         // a deferred Stop or a waiting respawn takes over under black
                         EnterFinalFade();
@@ -469,7 +469,7 @@ public class ReplayController : MonoBehaviour
                 // 1.5s after the re-invoke: the game's own black screen fades in and
                 // was empirically not fully opaque yet at 0.8s (brief corpse-cam flash)
                 switch (RespawnHandoff.DecideBlackHoldExit(
-                            Time.time, _phaseClock, ReplayPatches.DeferStopPatch.StopReinvokedAt,
+                            Time.time, _phaseClock, ReplayPatches.KillcamDeferStopPatch.StopReinvokedAt,
                             _handoff.ReplacementReleased, _handoff.ReplacementRunning))
                 {
                     case RespawnHandoff.BlackHoldExit.HandedOffUnderGameBlack:

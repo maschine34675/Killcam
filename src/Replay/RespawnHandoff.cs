@@ -1,7 +1,7 @@
 namespace Killcam.Replay;
 
 // Keeps a respawn of the replay's victim waiting until the death replay has handed
-// the screen over, the same way DeferStopPatch keeps a Killed raid end waiting.
+// the screen over, the same way KillcamDeferStopPatch keeps a Killed raid end waiting.
 //
 // Pure state and decisions: no Unity, no EFT. Bodies are compared by reference only,
 // so the offline checks in tools/HandoffChecks drive it with plain objects. The Harmony

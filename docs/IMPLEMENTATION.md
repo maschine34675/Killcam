@@ -47,7 +47,7 @@ fade back, then the camera follows **the killer's eyes live** for `LiveTailSecon
 (default 5 s) (`FollowKillerInTail`; fallback: last replay position if he has died in the
 meantime). Afterwards the replay itself fades to black and holds black until the re-invoked
 `LocalGame.Stop` has raised its own blackscreen (detected via
-`DeferStopPatch.StopReinvokedAt` + 1.5 s; emergency timeout 5 s) — so the corpse cam never
+`KillcamDeferStopPatch.StopReinvokedAt` + 1.5 s; emergency timeout 5 s) — so the corpse cam never
 flashes up between replay end and the end-of-raid transition. During the live tail the
 killer himself stays hidden (the camera sits in his eyes), but his **held weapon is shown
 again** (`LivePlayerHider.ShowHeldWeapon`) — it rides on his live hands and reads like a

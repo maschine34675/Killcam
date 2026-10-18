@@ -198,7 +198,7 @@ internal static class Program
     // ------------------------------------------------------------------ stale samplers
 
     /// <summary>
-    /// FixPerfectCullingSamplerPatch finds stale samplers from the ones it saw starting plus the
+    /// KillcamFixPerfectCullingSamplerPatch finds stale samplers from the ones it saw starting plus the
     /// sampler's static Instance instead of a scene search. The registry is a copy of Redeploy.Core's;
     /// when that repo sits next to this one, the copy must still match it apart from the namespace.
     /// </summary>

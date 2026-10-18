@@ -13,16 +13,16 @@ public static class ReplayPatches
 {
     public static void Enable()
     {
-        new RaidStartPatch().Enable();
-        new ShotRecordPatch().Enable();
-        new DeathReplayPatch().Enable();
-        new DeferStopPatch().Enable();
-        new SuppressDeathFadePatch().Enable();
-        new FixPerfectCullingSamplerPatch().Enable();
+        new KillcamRaidStartPatch().Enable();
+        new KillcamShotRecordPatch().Enable();
+        new KillcamDeathReplayPatch().Enable();
+        new KillcamDeferStopPatch().Enable();
+        new KillcamSuppressDeathFadePatch().Enable();
+        new KillcamFixPerfectCullingSamplerPatch().Enable();
     }
 
     // Arms the recorder at raid start (same hook KillAndDamageInfo uses for analytics).
-    public class RaidStartPatch : ModulePatch
+    public class KillcamRaidStartPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
@@ -33,15 +33,15 @@ public static class ReplayPatches
         public static void Postfix()
         {
             Plugin.Recorder.ResetForNewRaid();
-            DeferStopPatch.StopWasDeferred = false;
-            DeferStopPatch.StopReinvokedAt = 0f;
+            KillcamDeferStopPatch.StopWasDeferred = false;
+            KillcamDeferStopPatch.StopReinvokedAt = 0f;
             Plugin.ReplayCtrl.ResetHandoffForNewRaid();
             HoldRespawnPatch.TryApply();
         }
     }
 
     // Timestamps every shot so the replay overlay can flash a marker.
-    public class ShotRecordPatch : ModulePatch
+    public class KillcamShotRecordPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
@@ -62,7 +62,7 @@ public static class ReplayPatches
         }
     }
 
-    public class DeathReplayPatch : ModulePatch
+    public class KillcamDeathReplayPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
@@ -149,7 +149,7 @@ public static class ReplayPatches
     // Defers the entire LocalGame.Stop() call while the replay owns the raid-end
     // sequence — same proven pattern as the KillAndDamageInfo killcam. Stop()
     // immediately shows a black overlay and destroys game state otherwise.
-    public class DeferStopPatch : ModulePatch
+    public class KillcamDeferStopPatch : ModulePatch
     {
         private static bool _isReentry;
 
@@ -208,7 +208,7 @@ public static class ReplayPatches
     // PendingReplayKiller, so gating on that flag skips the fade exactly when a
     // death replay owns the screen. The deferred raid-end flow brings its own
     // black-screen transition later.
-    public class SuppressDeathFadePatch : ModulePatch
+    public class KillcamSuppressDeathFadePatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
@@ -233,7 +233,7 @@ public static class ReplayPatches
     // The stale ones come from the samplers seen starting plus the sampler's static Instance, not from
     // FindObjectsOfType: that walked the whole scene on every respawn camera and grew with every corpse
     // a long raid keeps (Redeploy docs/RESPAWN-API.md, "Messraid 17.09.2026").
-    public class FixPerfectCullingSamplerPatch : ModulePatch
+    public class KillcamFixPerfectCullingSamplerPatch : ModulePatch
     {
         private static System.Type _samplerType;
         private static PropertyInfo _instanceProperty;

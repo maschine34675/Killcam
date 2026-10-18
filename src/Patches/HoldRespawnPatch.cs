@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Killcam.Patches;
 
 // Holds a respawn of the death replay's victim until the replay has handed the screen
-// over, the respawn counterpart of DeferStopPatch. Redeploy.Core runs every respawn
+// over, the respawn counterpart of KillcamDeferStopPatch. Redeploy.Core runs every respawn
 // through RespawnEngine.RunRespawn(RespawnRequest, Action<Exception>), consumed with
 // StartCoroutine; a postfix swaps the returned coroutine for one that first waits and
 // then runs the original step by step. Nothing in the pipeline has started while it
