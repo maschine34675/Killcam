@@ -150,10 +150,6 @@ new CPU benchmark; the README makes no fixed frame-time or memory promise.
   world position and rotation from the recorded weapon-root or animation track,
   rather than parenting it to the mapped WeaponRoot bone. Skinned meshes (e.g. straps)
   are skipped; moving weapon parts (bolt etc.) are static in the copy.
-- **Coexistence with KillAndDamageInfo:** its live killcam also owns the death sequence
-  (deferred stop + camera takeover). If that mod is loaded, the death replay disables itself
-  automatically (log warning); the F9 debug replay still works. To test the death replay,
-  temporarily remove the KillAndDamageInfo DLL from `BepInEx/plugins`.
 - **Respawn compatibility (e.g. Redeploy):** recording is deliberately NOT stopped
   permanently on your own death (only while a replay actively occupies the
   screen) — otherwise recording would end for good after the first death and every further

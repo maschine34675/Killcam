@@ -56,8 +56,6 @@ Dieselben Harmony-Pitfalls wie in `D:\SPT41\Development\KillAndDamageInfo\CLAUDE
   aber die Waffe in der Hand ist ein eigenes View-Objekt unter `Player.WeaponRoot.Original`
   (und empirisch kein Nachfahre von `player.gameObject`). Beim Verstecken von Spielern beides
   sweepen — inkl. `Light`-Komponenten (Taschenlampe sitzt an der Hand-Waffe).
-- **Koexistenz**: Death-Replay deaktiviert sich automatisch, wenn
-  `com.local.killanddamageinfo` geladen ist (dessen Live-Killcam besitzt die Todessequenz).
 - Postfixes in Gameplay-Pfaden (OnDead, OnMakingShot) immer in try/catch.
 - **RespawnApi-Interop** (seit 0.9.8): `src/Interop/RedeployRespawnInterop.cs` ist eine Kopie
   aus dem Redeploy-Repo (`interop/`), nur der Namespace ist geändert. Nie von Hand ändern,

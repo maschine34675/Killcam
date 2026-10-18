@@ -46,12 +46,9 @@ public class Plugin : BaseUnityPlugin
     // Internal: the interop type is internal by design (copied source, one per mod).
     internal static LocalBodyTracker RespawnTracker;
 
-    // The KillAndDamageInfo live killcam also owns the death sequence (deferred
-    // Stop + camera swap). Two owners fight over the camera, so the death replay
-    // yields when that mod is loaded; the debug hotkey still works.
-    public static bool DeathReplayActive =>
-        DeathReplay.Value
-        && !BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("com.local.killanddamageinfo");
+    // Whether a death plays the replay. Kept as a property: ArenaMode reads it by
+    // reflection (ArenaMode.Client/Spectator/KillcamCompat.cs).
+    public static bool DeathReplayActive => DeathReplay.Value;
 
     public void Awake()
     {

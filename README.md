@@ -29,9 +29,6 @@ Current version: **1.0.0**, formerly **KillcamReplay**.
 - **Redeploy:** with its shared Core installed, a requested respawn waits for
   playback by default. Disabling `WaitForReplayBeforeRespawn` allows the body
   replacement to cut the replay short. Arena manages its own wait instead.
-- **KillAndDamageInfo:** when `com.local.killanddamageinfo` is installed, Killcam
-  automatically disables death playback because both mods would control the
-  death camera. The debug replay remains available.
 - **Fika/co-op:** not verified; the current hooks target local raids. Do not assume
   the single-player tests cover synchronized multiplayer deaths.
 
@@ -115,7 +112,7 @@ active setting. `ShowShotLines` controls the recorded shot lines and muzzle ligh
 - Missing weapon geometry can omit the killer's weapon; a failed victim-model
   copy can use the silhouette. These fallbacks are logged.
 - If no replay appears, check `DeathReplay`, the Arena Killcam mutator when
-  applicable, KillAndDamageInfo, and leftover old DLLs. The log distinguishes
+  applicable, and leftover old DLLs. The log distinguishes
   missing/short killer tracks from loading or migration errors.
 - If a respawn cuts the replay short, check `WaitForReplayBeforeRespawn` and
   warnings about the Core handoff contract. Other respawn mods are not covered
