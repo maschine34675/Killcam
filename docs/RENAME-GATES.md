@@ -32,5 +32,5 @@ concurrent writer; Arena and Redeploy documentation changes are scoped separatel
 - [x] G6: GPU run loads only the new Killcam and matching Arena build, preserves settings, and completes death replay followed by safe respawn/exit.
   EVIDENCE: Process 194a160f, native Factory DM enemy death/replay/respawn and two real post-respawn shots passed; frame 12937 visually checked by test agent and parent. Native migration retained all 19 saved entries. Settings/profile and unrelated DLL comparisons passed. See RENAME-20261018.md and ignored artifacts/native-rename-20261018/NATIVE-RESULTS.md; no clean-install or all-modes claim.
 
-- [ ] G7: Test changes are restored, scoped work is committed, and final evidence distinguishes offline and native checks.
-  EVIDENCE: pending
+- [x] G7: Test changes are restored, scoped work is committed, and final evidence distinguishes offline and native checks.
+  EVIDENCE: Native restoration verifier independently rerun by parent: KILLCAM_NATIVE_RENAME_VERIFIED. Reports committed as Killcam b521321 and Arena 0440fc4; implementation 12396a6/63c2766 and 5d53458, Redeploy documentation 71e1513. Only the pre-existing unrelated Arena tools/__pycache__/ remains untracked. GPU2 MainMenu, no active test hooks, control free; report explicitly limits acceptance to one Factory DM replay/respawn and lists native diagnostics.
