@@ -7,8 +7,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$source = (Resolve-Path -LiteralPath $AssemblyPath).Path
-$root = (Resolve-Path -LiteralPath $SptPath).Path.TrimEnd('\','/')
+$source = (Resolve-Path -LiteralPath $AssemblyPath).ProviderPath
+$root = (Resolve-Path -LiteralPath $SptPath).ProviderPath.TrimEnd('\','/')
 $plugins = Join-Path $root 'BepInEx/plugins'
 if (-not (Test-Path -LiteralPath $plugins -PathType Container)) { throw 'Target has no BepInEx/plugins folder.' }
 if ([Reflection.AssemblyName]::GetAssemblyName($source).Name -ne 'maschine-Killcam') { throw 'Not the renamed Killcam assembly.' }
@@ -19,7 +19,7 @@ $owned = @('maschine-Killcam.dll','maschine-Killcam.pdb','maschine-KillcamReplay
 $existing = @(Get-ChildItem -LiteralPath $plugins -File -Recurse | Where-Object Name -In $owned)
 # Validate every final path before moving anything. Backups are outside discovery.
 foreach ($file in $existing) {
-    $resolved = (Resolve-Path -LiteralPath $file.FullName).Path
+    $resolved = (Resolve-Path -LiteralPath $file.FullName).ProviderPath
     if (-not $resolved.StartsWith($pluginRoot, [StringComparison]::OrdinalIgnoreCase)) { throw "Owned file is outside plugin root: $resolved" }
     # Refuse a running game's locked files before any mutation. Never stop a game here.
     $handle = [IO.File]::Open($resolved, 'Open', 'Read', 'None')
