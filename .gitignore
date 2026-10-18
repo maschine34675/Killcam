@@ -1,6 +1,5 @@
 bin/
 obj/
 .vs/
-Shared.props.user
-LogOutput.log
 artifacts/
+.unlazy/
