@@ -1,248 +1,180 @@
 # Killcam
 
-GUID `com.maschine.Killcam`, assembly `maschine-Killcam`.
+Replays the last seconds before your death from the killer's recorded viewpoint.
+The raid continues in the background; after playback, the normal death screen
+or a compatible mod's respawn takes over.
 
-## Installation and upgrading from KillcamReplay
+Current version: **0.9.15**, formerly **KillcamReplay**.
 
-Install `maschine-Killcam.dll` in `BepInEx/plugins`. Remove any previous
-`maschine-KillcamReplay.dll`, and replace any older `maschine-Killcam.dll`
-(including the separate experimental Killcam 1.0.0). Keep only one copy, also
-checking plugin subfolders. The two implementations must not run together.
+## Features
 
-Version 0.9.15 renames KillcamReplay without changing playback behavior. On first
-start, `BepInEx/config/com.maschine.KillcamReplay.cfg` is copied to
-`com.maschine.Killcam.cfg` if the new file does not exist. The original is retained;
-an existing new config always wins. If migration fails, Killcam stays disabled
-for that launch and logs the reason instead of saving defaults over your settings.
+- Recorded camera movement and aim, with a configurable replay window.
+- Slow motion around the killing moment and an optional live view of the killer afterward.
+- Victim model with a silhouette fallback, plus a mesh copy of the killer's weapon.
+- Optional shot lines and muzzle lights. These illustrate recorded aim, not confirmed hits.
+- A skip key and an optional debug replay without dying.
+- Optional integration with ArenaMode and the Redeploy.Core respawn API.
 
-Update ArenaMode alongside Killcam: older Arena builds look up the previous
-plugin identity. Redeploy.Core's respawn API is unchanged.
+## Requirements and compatibility
 
-The development build deploys through `tools/Deploy-Killcam.ps1`. It refuses
-locked DLLs and archives existing Killcam/KillcamReplay DLLs and symbols beneath
-`BepInEx/killcam-backups`, outside plugin discovery. It does not stop the game.
-The plugin also rejects a simultaneous KillcamReplay installation; this safety
-check is not a substitute for removing old DLLs.
+- Built for **SPT 4.1**, EFT **0.16.9.5 / 40743**, using its BepInEx 5 and SPT client libraries.
+  Other SPT/EFT versions have not been verified.
+- **Client-only:** install one DLL. Killcam has no server component and does not
+  require ArenaMode, Redeploy, or Redeploy.Core for ordinary death replays.
+- **ArenaMode:** enable Killcam in Arena's map-selection mutators. Arena selects
+  the recorded duration and holds its respawn until the replay releases the
+  camera. Its live tail is half the configured duration (2.5 seconds at the
+  default of 5); the saved Killcam setting is not changed. Update both mods
+  when moving from KillcamReplay to Killcam.
+- **Redeploy:** with its shared Core installed, a requested respawn waits for
+  playback by default. Disabling `WaitForReplayBeforeRespawn` allows the body
+  replacement to cut the replay short. Arena manages its own wait instead.
+- **KillAndDamageInfo:** when `com.local.killanddamageinfo` is installed, Killcam
+  automatically disables death playback because both mods would control the
+  death camera. The debug replay remains available.
+- **Fika/co-op:** not verified; the current hooks target local raids. Do not assume
+  the single-player tests cover synchronized multiplayer deaths.
 
-A true killcam for SPT: on death, the final action is played back **from the killer's point
-of view** — not a live view of the killer (as in KillAndDamageInfo), but a replay of the
-recorded view direction and position of the last seconds before the kill.
+## Installation and updates
 
-## How it works
+1. Close EFT.
+2. Place `maschine-Killcam.dll` in `BepInEx/plugins` under your SPT installation.
+3. Keep only one copy, including plugin subfolders. Remove
+   `maschine-KillcamReplay.dll` and replace any older `maschine-Killcam.dll`,
+   including the separate experimental **Killcam 1.0.0**.
+4. Start EFT. The BepInEx log should show `maschine-Killcam 0.9.15 loaded`.
 
-**Recording (during the raid):**
-A `SnapshotRecorder` samples at a fixed rate (default 20 Hz), for every living player/bot,
-the camera position (`Player.CameraPosition`), view direction (`Player.Rotation`, yaw/pitch),
-body pose (`PoseLevel`, `IsInPronePose`) and the world pose of the held weapon
-(`PlayerBones.WeaponRoot.Original`) into a ring buffer (default 15 s). Shots are marked with
-a timestamp via a postfix on `Player.OnMakingShot`. During the replay, a script-free mesh
-copy of the killer's weapon (`WeaponGhost`) travels along its recorded track in front of the
-camera — you can see what he aims with and where; his shot lines start at its muzzle.
+On the first renamed launch, Killcam copies
+`BepInEx/config/com.maschine.KillcamReplay.cfg` to
+`BepInEx/config/com.maschine.Killcam.cfg` **only if the new file is absent**.
+The original is retained; an existing new config always wins. If migration
+fails, Killcam stays inactive for that launch and logs the reason instead of
+saving defaults over the old settings. A leftover Replay DLL prevents the new
+plugin from loading; remove it rather than keeping both implementations.
 
-**Replay (on death):**
-`Player.OnDead` provides the killer (`LastAggressor`). The window of the last N seconds
-(default 5 s) is extracted from his ring buffer. `LocalGame.Stop()` is deferred (same
-pattern as the KillAndDamageInfo killcam) and the main camera is interpolated along the
-recorded path (position: lerp, yaw/pitch: LerpAngle). The pose is applied in
-`Application.onBeforeRender` — after all `LateUpdate`s, so the still-running
-`PlayerCameraController` (corpse cam) cannot overwrite the rendered image. Deliberately,
-**no** controller is destroyed or created: `PlayerCameraController.Destroy` detaches the
-`EffectsController` from the player, whose death handler then throws NullRefs and aborts the
-end-of-raid sequence (soft lock). The death fade (`EffectsController.method_9`,
-DeathFade + FastBlur) is suppressed via prefix during the replay, otherwise it would sit
-black on top of it.
+For subsequent updates, replace the DLL and keep the config. To uninstall, close
+EFT and remove the Killcam DLL. Its config can be kept for a later reinstall or
+removed separately. Do not remove Redeploy.Core if another mod still uses it.
 
-**Slow motion:**
-The last `SlowMoSeconds` (default 1.5 s) before the kill run in slow motion
-(`SlowMoFactor`, default 0.35×) — purely via the playback clock, no `Time.timeScale`;
-the live world keeps running normally. Smooth transition over 0.4 s when entering the window.
-The deferred-stop delay accounts for the stretched wall-clock time.
+## Use
 
-**Soft ending (live tail):**
-ArenaMode raids use half the configured live-tail duration (normally 2.5 instead
-of 5 seconds). Recorded playback, slow motion and transition fades are unchanged;
-ordinary raids retain the full configured duration. The saved setting is not changed.
+No setup is needed for an ordinary solo raid: after an enemy kills you, the mod
+plays the recorded lead-up, slows the final moment, then briefly follows the
+killer live. **Space** skips playback. The default recorded window is **10
+seconds**; slow motion, transitions and the live tail make a full 10-second
+recording take longer than 10 seconds to play back.
 
-At the end of the recorded path (the kill moment) the replay does not end abruptly: a short
-fade to black (~0.2 s), under full black the scene switches to the live world (puppet
-removed, hidden bots and your own corpse visible again — only the killer stays hidden),
-fade back, then the camera follows **the killer's eyes live** for `LiveTailSeconds`
-(default 5 s) (`FollowKillerInTail`; fallback: last replay position if he has died in the
-meantime). Afterwards the replay itself fades to black and holds black until the re-invoked
-`LocalGame.Stop` has raised its own blackscreen (detected via
-`DeferStopPatch.StopReinvokedAt` + 1.5 s; emergency timeout 5 s) — so the corpse cam never
-flashes up between replay end and the end-of-raid transition. During the live tail the
-killer himself stays hidden (the camera sits in his eyes), but his **held weapon is shown
-again** (`LivePlayerHider.ShowHeldWeapon`) — it rides on his live hands and reads like a
-natural first-person view; weapon views newly created while reloading also stay visible
-(excluded from the refresh sweep). If `Stop` was not deferred (e.g. because a respawn mod
-intercepted the death), the camera is returned directly after the tail — no black hold,
-which would otherwise cover the respawn prompt. In the F9 debug replay the tail is
-deliberately disabled (the player is alive and would be blind for that long).
+**F9** plays a debug replay of the nearest recorded bot while you are alive.
+The live tail is omitted for this debug replay. Change or unbind the key if it
+conflicts with another mod. There is no saved video file or replay browser.
 
-**Victim ghost (phase 2/3):**
-During the replay you watch yourself through the killer's eyes. Two representations:
+The replay needs a valid killer and at least two recorded samples. Deaths
+without a usable attacker, or with no/too little recorded history, may have no
+replay. This is not a reconstruction of every possible death cause.
 
-- **Real character model** (`GhostPuppet`, default): The `BoneRecorder` records the
-  complete skeleton of the local player (only the local player — which is what keeps it
-  affordable: ~a few hundred transform reads per tick, flat preallocated arrays, a few MB).
-  On replay the corpse is cloned — `Corpse.CreateCorpse` converts the real, dressed player
-  GameObject in place, so the clone wears clothing + gear. Before stripping, every renderer
-  on the clone is forced to `shadowCastingMode = On` — otherwise head/upper body stay
-  invisible, because EFT renders them on your own player in first person with
-  `ShadowCastingMode.ShadowsOnly` (the corpse conversion never resets that) and a raw clone
-  copies this state along. The obvious route via
-  `PlayerBody.UpdatePlayerRenders(ThirdPerson, ...)` — the game's own method for this — does
-  NOT work on the clone: it iterates `PlayerBody.BodySkins`, which is only populated at
-  runtime (Awake/Equip) and is empty on a clone whose Awake we deliberately never run
-  (silent no-op, no error). The direct renderer sweep bypasses that entirely. The clone is
-  instantiated under an INACTIVE holder (no Awake runs), all scripts/physics/animator are
-  stripped via `DestroyImmediate` (no Awake → no OnDestroy side effects), bones are mapped
-  by hierarchy path and overwritten per frame with the recorded poses — **no animator
-  needed**, exact playback of gait, lean and aiming. The source (corpse or live body) is
-  hidden after cloning so it does not stay visible next to the running ghost.
-- **Silhouette** (`ReplayGhost`, automatic fallback): capsule body with pose-dependent
-  height, head sphere, view-direction bar — in case puppet creation fails or
-  `UseRealModelGhost` is off.
+## Configuration
 
-In the F9 debug replay the ghost is your own path (puppet source = living body; your own
-head stays invisible there for FPS reasons): stand in front of a bot, F9, watch yourself.
+Edit `BepInEx/config/com.maschine.Killcam.cfg`, or use **F12** if the BepInEx
+ConfigurationManager is installed. Defaults below apply to a new config;
+updating preserves existing values. Recording rate and buffer size are read at
+raid start, so choose those before entering a raid.
 
-## Performance budget
+| Section / option | Default | Meaning |
+| --- | --- | --- |
+| `Recording / SampleRate` | 20 Hz | Recording rate, 5–60 Hz. |
+| `Recording / BufferSeconds` | 15 s | History kept per actor, 5–60 s. Keep it at least as long as the desired replay. |
+| `Replay / Duration` | 10 s | Recorded window, 2–12 s; Arena can select its own duration. |
+| `Replay / LiveTailSeconds` | 5 s | Live view after recording, 0–10 s; 0 disables it, Arena uses half. |
+| `Replay / FollowKillerInTail` | true | Follow the killer during the live tail; otherwise hold the last replay position. |
+| `Replay / SlowMoSeconds` | 1.5 s | Final recorded seconds played in slow motion, 0–5 s; 0 disables it. |
+| `Replay / SlowMoFactor` | 0.35 | Playback speed during slow motion, 0.1–1. |
+| `Replay / DeathReplay` | true | Automatic playback on death. Turning this off does not disable the recorder. |
+| `Replay / ShowVictimGhost` | true | Show the victim during playback. |
+| `Replay / UseRealModelGhost` | true | Use the character model; fall back to a silhouette when unavailable. |
+| `Replay / HideLiveBots` | true | Hide live actors while their recorded scene is shown. AI continues running. |
+| `Replay / ShowShotLines` | true | Killer shots in red, victim shots in cyan, with brief muzzle lights. |
+| `Replay / ShowKillerWeapon` | true | Show a mesh copy of the killer's weapon. |
+| `Replay / InvertPitch` | false | Invert replay view pitch. |
+| `Replay / HudTopFraction` | 0.87 | HUD position measured from the top, 0–0.9 of screen height. |
+| `Replay / WaitForReplayBeforeRespawn` | true | Hold a compatible Core respawn until replay handoff; Arena uses its own timing. |
+| `Replay / SkipKey` | Space | Skip playback, then release the waiting respawn or raid end. |
+| `Debug / ReplayKey` | F9 | Replay the nearest bot without dying. |
 
-- **Idle cost per frame:** 2 float comparisons (sample not due → early-out).
-- **Per sample tick (20×/s):** per living player 1 transform read + 1 Vector2 read +
-  1 struct write into a preallocated array. With ~30 bots: microsecond range.
-- **No GC allocations in the hot path:** ring buffers are preallocated (structs), the
-  track dictionary only grows when a new player spawns. Extracting the replay window
-  allocates only once, on death.
-- **Memory:** 32 bytes/snapshot × 20 Hz × 15 s ≈ 9.6 KB per player; with 40 players ≈ 385 KB.
-  The bone recorder (local player only) takes a few MB depending on skeleton size
-  (logged at raid start).
-- **No scene searches on respawn cameras (0.9.10):** the PerfectCulling sampler fix finds the
-  stale sampler from the samplers it saw starting and the sampler's own static instance. The
-  earlier `FindObjectsOfType` walked the whole scene each time a respawn mod rebuilt the camera
-  and grew with every corpse a long raid keeps (about 300 ms per call late in a 25-minute
-  Arena raid, measured with Redeploy.Core 1.0.2).
+The old `ShowMuzzleFlashes` entry may remain in migrated configs but is not an
+active setting. `ShowShotLines` controls the recorded shot lines and muzzle lights.
 
-## Configuration (BepInEx F12 / config file)
+## Limitations and troubleshooting
 
-| Option | Default | Description |
-|---|---|---|
-| Recording.SampleRate | 20 Hz | Recording rate |
-| Recording.BufferSeconds | 15 s | Ring buffer length |
-| Replay.Duration | 10 s | Replay length |
-| Replay.LiveTailSeconds | 5 s | Keep showing live after replay end (0 = off) |
-| Replay.SlowMoSeconds | 1.5 s | Play the last N seconds before the kill in slow motion (0 = off) |
-| Replay.SlowMoFactor | 0.35 | Playback speed inside the slow-motion window |
-| Replay.FollowKillerInTail | true | Follow the killer live during the tail instead of staying static |
-| Replay.HudTopFraction | 0.87 | Vertical position of the killcam HUD (fraction of screen height from the top) |
-| Replay.ShowShotLines | true | Shot line (killer red, own cyan) + brief muzzle light at recorded shot timestamps |
-| Replay.ShowKillerWeapon | true | Mesh copy of the killer's weapon travels its recorded track in front of the camera |
-| Replay.DeathReplay | true | Replay on your own death |
-| Replay.ShowVictimGhost | true | Show your own silhouette (ghost) in the replay |
-| Replay.UseRealModelGhost | true | Real character model instead of silhouette (automatic fallback) |
-| Replay.HideLiveBots | true | Hide living bots during the replay |
-| Replay.InvertPitch | false | Invert vertical view direction (in case the camera tilts the wrong way) |
-| Replay.WaitForReplayBeforeRespawn | true | A respawn during the death replay waits until the replay has faded out (not in ArenaMode raids) |
-| Replay.SkipKey | Space | Skip the running replay; a waiting respawn or raid end follows behind a short fade to black |
-| Debug.ReplayKey | F9 | Immediately play a replay of the nearest bot (testing without dying) |
+- The world, AI and sounds continue live. This is a visual reconstruction, not
+  a deterministic rewind, audio recording, or proof of bullet penetration/hits.
+- Shot lines follow recorded aim against world geometry; spread and the full
+  ballistic path are not reconstructed. Weapon mesh copies do not animate
+  moving parts such as bolts or reproduce every skinned attachment.
+- The ordinary "Killed in Action" overlay can remain visible during replay.
+- Missing weapon geometry can omit the killer's weapon; a failed victim-model
+  copy can use the silhouette. These fallbacks are logged.
+- If no replay appears, check `DeathReplay`, the Arena Killcam mutator when
+  applicable, KillAndDamageInfo, and leftover old DLLs. The log distinguishes
+  missing/short killer tracks from loading or migration errors.
+- If a respawn cuts the replay short, check `WaitForReplayBeforeRespawn` and
+  warnings about the Core handoff contract. Other respawn mods are not covered
+  merely because Redeploy works.
 
-## Known limitations (prototype)
+The latest [native verification](docs/RENAME-20261018.md) covers a real enemy
+death, replay, respawn, shooting afterward and normal exit in Factory Arena
+Deathmatch. It does not establish every map, mode, or third-party combination.
+Native Unity/EFT warnings remain documented there.
 
-- **The world keeps running live** — living bots (including the killer) are hidden during
-  the replay though (`LivePlayerHider`: `Renderer.enabled`, AI/logic keep running; restored
-  afterwards). Equipment views (weapon, chest rig, backpack, headwear, ...) are pooled
-  objects (`AssetPoolObject`) attached to a bone — not guaranteed to be descendants of
-  `player.gameObject` — so `PlayerBody.SlotViews` (the game's own authoritative list of
-  every currently equipped view) is traversed additionally and its `Renderers` are hidden
-  explicitly. The weapon **in the hands** is NOT a SlotView model (the slot suppresses its
-  body model while the item is held) — it is a separate view object of the hands controller
-  under the `WeaponRoot` bone and is swept separately. A flashlight moreover is not a
-  renderer but a `UnityEngine.Light` component (typically sitting on the hand weapon) that
-  keeps shining when only the mesh is hidden — so all `Light` components (player hierarchy,
-  slots, WeaponRoot) are disabled as well. Your own corpse/live body (the puppet source) is
-  also hidden as soon as the clone is up. Additional actors as ghosts (e.g. the killer in a
-  third-person view) would be a later extension.
-- **Shot lines = aim, not ballistics** — at each recorded shot timestamp a line (red for
-  the killer, cyan for your own shots; `ShotTracers`, pooled `LineRenderer`s) runs from
-  the shooter's muzzle to the point where a ray from his eyes along his recorded aim
-  meets the world within 2 km
-  (`LayersMaskController.HighPolyWithTerrainMask`, i.e. walls and terrain, not bodies) —
-  the point a zeroed sight converges on. It stays where it was fired and fades over 0.4 s
-  of replay time, so slow motion stretches it; its width follows the camera distance so it
-  stays a few pixels wide near and far. Spread, recoil and the 20 Hz sampling are not in
-  the aim: a line shows where the shooter pointed, not a confirmed hit. The killer's lines
-  start at his weapon ghost's muzzle (below the camera if none is shown), your own at the
-  puppet weapon's. A point light at the muzzle flashes for ~70 ms per shot (`ShotFlash`).
-  No particle effect, no sound. Can be disabled via `ShowShotLines`.
-- **Hidden bots are re-swept every 0.5 s** (`RefreshHidden`): reloading and weapon switching
-  create NEW view objects mid-replay (magazine in the hand, round, different weapon) that
-  did not exist at the initial hide and would otherwise be visible, floating freely.
-- **The Odin NullRef on corpse cloning is no longer logged**: it comes from the item scripts
-  of the slot-view equipment (holster/back weapon), is demonstrably without consequence
-  (the components are stripped right afterwards) — the Unity logger is muted exactly for the
-  synchronous `Instantiate` call.
-- **The "Killed in Action" panel** appears as a UI overlay on top of the replay (as with the
-  KillAndDamageInfo killcam).
-- **Weapon on the puppet = pure mesh copy**: the Odin/Sirenix deserialization of the weapon
-  item throws an (internally caught) NullReferenceException on raw cloning and leaves the
-  weapon mesh empty. So the weapon is not cloned at all; its meshes are copied individually
-  (`AttachWeaponMeshes`: new GameObjects with sharedMesh + sharedMaterials, without any
-  scripts) and attached to the puppet's mapped WeaponRoot bone — they ride on the recorded
-  hand animation. Skinned meshes (e.g. straps) are skipped; moving weapon parts (bolt etc.)
-  are static in the copy.
-- **Coexistence with KillAndDamageInfo:** its live killcam also owns the death sequence
-  (deferred stop + camera takeover). If that mod is loaded, the death replay disables itself
-  automatically (log warning); the F9 debug replay still works. To test the death replay,
-  temporarily remove the KillAndDamageInfo DLL from `BepInEx/plugins`.
-- **Respawn compatibility (e.g. Redeploy):** recording is deliberately NOT stopped
-  permanently on your own death (only during the ~10 s a replay actively occupies the
-  screen) — otherwise recording would end for good after the first death and every further
-  replay in the same round would fail with "Killer track too short". The `BoneRecorder`
-  detects a character switch (new player GameObject after respawn) and reinitializes itself
-  automatically. Verified in-game with Redeploy (multiple deaths/replays in one round).
-  Since 0.9.8 the mod consumes `RespawnApi` v1 of `maschine-Redeploy.Core` through a copy of
-  Redeploy's interop file (`src/Interop/RedeployRespawnInterop.cs`, namespace changed only;
-  re-copy it from the Redeploy repo, never edit it). When the replay's victim body is
-  replaced, the playback ends in that same frame ("Playback end ...: replacement (death)")
-  instead of a frame later on the destroyed camera ("camera destroyed", still the fallback
-  without Core). The death log line also reports `respawnPending` (true/false/unknown); the
-  replay itself does not change on it yet, and the deferred-Stop hand-off stays, because a
-  Killed stop can still follow a claimed death (give-up, match end). A body retired by a live
-  swap that dies later no longer starts a replay: only the current `MainPlayer` counts.
-  Since 0.9.9 a respawn **waits for the replay** (`WaitForReplayBeforeRespawn`, on by default),
-  the respawn counterpart of the deferred `Stop`: choosing Respawn in Redeploy's prompt while the
-  replay runs no longer cuts it. The replay plays its live tail, fades to black, and the
-  respawn runs under that black; the new view fades in. Mechanism: a postfix on
-  `Redeploy.Core`'s `RespawnEngine.RunRespawn` (resolved by name, no compile dependency) wraps the
-  pipeline coroutine in a wait for the replay's hand-off, only when the request replaces the
-  replay's victim. The wait is capped (the same bound as the deferred Stop), ends early when the
-  raid is ending, and never applies in ArenaMode raids (`ArenaSession.ReplaySeconds` is Arena's
-  timing contract). If the Core members are missing, the hold stays off and a respawn cuts the
-  replay as before. The **skip key** (`SkipKey`, Space; works while other keys are held) ends the
-  replay at any time; a waiting respawn or raid end then follows right away behind the fade to
-  black. The hold starts when Redeploy actually starts the respawn, i.e. after its own
-  `RespawnCooldownSeconds`: skipping during that cooldown simply ends the replay, and the respawn
-  follows when the cooldown is over. If the raid ends or the cap runs out while a respawn waits,
-  the hold lets go and the replay ends like one nobody waits for. The pure hand-off state and
-  decisions are `src/Replay/RespawnHandoff.cs`, checked offline by `tools/HandoffChecks`
-  (`dotnet run --project tools/HandoffChecks -c Release`; `HANDOFF_CHECKS_PASSED`, or
-  `HANDOFF_CHECKS_PARTIAL` with exit code 3 when the built Core or the game is not found), which
-  also reads the Core members the hold binds to from the built Core.
+## Building and checks
 
-## Build
+Build from an SPT installation containing the game assemblies and client
+libraries. The default layout is `<SPT>/Development/Killcam`; override `SPTPath`
+when using another layout. The client targets .NET Standard 2.1; the offline
+check projects require the **.NET 10 SDK**. Auto-deployment also requires
+**PowerShell 7** (`pwsh`).
 
-Routine setup/recorder details are logged at Debug; replay lifecycle and real
-degradation/failure diagnostics remain visible at their existing levels. See
-[the logging follow-up](docs/LOGGING-20261018.md) for the bounded event mapping,
-offline verification and unchanged clone-logging limitation.
+**A normal build deploys into the configured SPT installation.** For an offline
+Release build from the repository root:
 
-```
-dotnet build -c Debug
+```powershell
+dotnet build Killcam.csproj -c Release "-p:CustomAfterMicrosoftCommonTargets=$((Resolve-Path tools/NoDeploy.targets).Path)"
 ```
 
-Automatically deploys DLL + PDB to `BepInEx/plugins` beneath the SPT installation
-two directories above this repository (override `SPTPath` in `Shared.props.user`).
-For an offline build, pass
-`-p:CustomAfterMicrosoftCommonTargets=<absolute repo path>/tools/NoDeploy.targets`.
+To build and deploy intentionally, close EFT and run:
+
+```powershell
+dotnet build Killcam.csproj -c Release
+```
+
+`tools/Deploy-Killcam.ps1` refuses locked files and archives existing Killcam and
+KillcamReplay DLLs/symbols under `BepInEx/killcam-backups`, outside plugin
+discovery. Debug builds also copy the PDB. The script does not stop the game.
+
+Offline checks (no deployment):
+
+```powershell
+pwsh -NoProfile -File tools/RenameChecks/Verify.ps1
+dotnet run --project tools/HandoffChecks -c Release
+```
+
+The rename checks need the SPT installation (`-SptPath` can override its default).
+The handoff checks also inspect a built Redeploy.Core library beside the repo
+or in the installation. Missing prerequisites produce `HANDOFF_CHECKS_PARTIAL`
+and exit 3, not a full pass. Offline checks are separate from in-game acceptance.
+
+## Documentation and support
+
+- [Technical implementation and camera/respawn ownership](docs/IMPLEMENTATION.md)
+- [Rename, migration and native verification](docs/RENAME-20261018.md)
+- [Logging levels and diagnostic limitations](docs/LOGGING-20261018.md)
+
+Report issues through this repository's Issues page. Include the SPT/EFT and
+Killcam versions, other camera/respawn mods, reproduction steps and the affected
+BepInEx session log (normally `BepInEx/LogOutput.log`, or its rotated session
+file). Remove credentials and personal identifiers before sharing logs or configs.
+Routine technical details use Debug; replay start/end and failures remain visible.
+
+## License
+
+This repository currently has no `LICENSE` file. A distribution license still
+needs to be selected before release; this README does not assign one.

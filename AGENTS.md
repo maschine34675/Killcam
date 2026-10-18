@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 ## Build & Deploy
 
@@ -18,11 +18,12 @@ Offline bauen: `-p:CustomAfterMicrosoftCommonTargets=<absoluter Pfad>/tools/NoDe
 ## Projekt
 
 BepInEx 5.x / HarmonyX Client-Mod für SPT: Killcam-**Replay** aus Sicht des Killers
-(aufgezeichneter Kamera-Pfad, kein Live-Blick). Prototyp — siehe README.md für
-Architektur, Performance-Budget und bekannte Einschränkungen.
+(aufgezeichneter Kamera-Pfad mit optionaler Live-Phase am Ende). Siehe README.md
+für Installation, Einstellungen und Einschränkungen; Architektur und
+Aufzeichnungsaufwand stehen in docs/IMPLEMENTATION.md.
 
 - `src/Recording/SnapshotRecorder.cs` — Ringpuffer-Aufzeichnung (20 Hz, allokationsfrei im Hot Path)
-- `src/Replay/ReplayController.cs` — Kamera-Pfad-Playback in LateUpdate + IMGUI-Overlay + F9-Debug-Replay
+- `src/Replay/ReplayController.cs` — Playback in LateUpdate, Kamera-Pose in onBeforeRender, IMGUI-Overlay + F9-Debug-Replay
 - `src/Patches/ReplayPatches.cs` — Raid-Start (vmethod_0), OnMakingShot, OnDead, DeferStop, PerfectCulling-Fix
 
 ## Wichtige Muster
