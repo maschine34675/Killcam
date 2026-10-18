@@ -76,7 +76,7 @@ public class BoneRecorder
         // old body (or, once destroyed, compare Unity-null). Start fresh for the new one.
         if (_bones != null && (_root == null || mainPlayer.gameObject.transform != _root))
         {
-            Plugin.Instance.Logger.LogInfo("BoneRecorder: main player changed — reinitializing for respawn");
+            Plugin.Instance.Logger.LogDebug("BoneRecorder: main player changed — reinitializing for respawn");
             Reset(_capacity);
         }
 
@@ -176,7 +176,7 @@ public class BoneRecorder
         _weaponAnimValid = new bool[_capacity];
 
         float mb = _capacity * _boneCount * 28f / (1024f * 1024f);
-        Plugin.Instance.Logger.LogInfo($"BoneRecorder: tracking {_boneCount} transforms, buffer {mb:F1} MB");
+        Plugin.Instance.Logger.LogDebug($"BoneRecorder: tracking {_boneCount} transforms, buffer {mb:F1} MB");
         return true;
     }
 

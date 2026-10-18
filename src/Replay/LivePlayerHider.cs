@@ -55,7 +55,7 @@ public class LivePlayerHider
             }
         }
 
-        Plugin.Instance.Logger.LogInfo(
+        Plugin.Instance.Logger.LogDebug(
             $"Hid {totalRenderers} renderers, {totalLights} lights of {_hidden.Count} live players");
     }
 

@@ -249,7 +249,7 @@ public class SnapshotRecorder : MonoBehaviour
         if (now >= _nextPruneLogTime)
         {
             _nextPruneLogTime = now + PruneLogInterval;
-            Plugin.Instance.Logger.LogInfo($"Retired {_staleScratch.Count} stale player track(s), {_tracks.Count} live");
+            Plugin.Instance.Logger.LogDebug($"Retired {_staleScratch.Count} stale player track(s), {_tracks.Count} live");
         }
 
         // never keep the dead players alive past the pass that dropped them

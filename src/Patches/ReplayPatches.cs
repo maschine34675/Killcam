@@ -221,7 +221,7 @@ public static class ReplayPatches
             if (ReplayController.PendingReplayKiller == null)
                 return true;
 
-            Plugin.Instance.Logger.LogInfo("Suppressing death fade during replay");
+            Plugin.Instance.Logger.LogDebug("Suppressing death fade during replay");
             return false;
         }
     }

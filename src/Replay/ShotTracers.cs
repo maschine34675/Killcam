@@ -99,7 +99,7 @@ public class ShotTracers
 
         _vertexColored = shader.name is "Sprites/Default" or "Legacy Shaders/Particles/Alpha Blended";
         _material = new Material(shader) { color = Color.white };
-        Plugin.Instance.Logger.LogInfo($"Shot line shader: {shader.name}");
+        Plugin.Instance.Logger.LogDebug($"Shot line shader: {shader.name}");
         return _material;
     }
 

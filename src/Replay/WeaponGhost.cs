@@ -60,7 +60,7 @@ public class WeaponGhost
                 return null;
             }
 
-            Plugin.Instance.Logger.LogInfo(
+            Plugin.Instance.Logger.LogDebug(
                 $"Killer weapon ghost: copied {ghost._copied} meshes, aim-locked via fireport"
                 + (ghost._usedInactiveFallback ? " (inactive fallback)" : ""));
             return ghost;
@@ -192,7 +192,7 @@ public class WeaponGhost
         if (!_loggedAlignment)
         {
             _loggedAlignment = true;
-            Plugin.Instance.Logger.LogInfo(
+            Plugin.Instance.Logger.LogDebug(
                 $"Killer weapon ghost: recorded rotation was {Vector3.Angle(recordedRotation * _localShotDir, aim * Vector3.forward):F0}° off the aim");
         }
 

@@ -93,7 +93,7 @@ public class GhostPuppet
             _mapped[i] = _cloneRoot.Find(window.Paths[i]);
             if (_mapped[i] != null) found++;
         }
-        Plugin.Instance.Logger.LogInfo($"Puppet: mapped {found}/{window.Paths.Length} bones");
+        Plugin.Instance.Logger.LogDebug($"Puppet: mapped {found}/{window.Paths.Length} bones");
 
         AttachWeaponMeshes();
 
@@ -155,7 +155,7 @@ public class GhostPuppet
             if (copied == 0)
             {
                 // expected whenever nothing is held, e.g. right after an unarmed respawn
-                Plugin.Instance.Logger.LogInfo("Puppet weapon: no weapon meshes in hands, showing the puppet unarmed");
+                Plugin.Instance.Logger.LogDebug("Puppet weapon: no weapon meshes in hands, showing the puppet unarmed");
                 Object.Destroy(pivot.gameObject);
                 return;
             }
@@ -172,7 +172,7 @@ public class GhostPuppet
 
             _weaponPivot = pivot;
             int skinned = weaponRoot.GetComponentsInChildren<SkinnedMeshRenderer>(false).Length;
-            Plugin.Instance.Logger.LogInfo(
+            Plugin.Instance.Logger.LogDebug(
                 $"Puppet weapon: copied {copied} meshes; track spread root={spreadRoot:F2}m anim={spreadAnim:F2}m -> using {(useAnim ? "anim" : "root")}"
                 + (usedInactiveFallback ? " (inactive fallback)" : "")
                 + (skinned > 0 ? $" ({skinned} skinned skipped)" : ""));
@@ -266,7 +266,7 @@ public class GhostPuppet
             c is not Transform && c is not Renderer && c is not MeshFilter
             && c is not Light && c is not ParticleSystem);
 
-        Plugin.Instance.Logger.LogInfo($"Puppet: stripped {stripped} components");
+        Plugin.Instance.Logger.LogDebug($"Puppet: stripped {stripped} components");
     }
 
     private static int StripUntilStable(GameObject clone, System.Func<Component, bool> shouldRemove)

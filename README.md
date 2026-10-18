@@ -212,6 +212,11 @@ head stays invisible there for FPS reasons): stand in front of a bot, F9, watch 
 
 ## Build
 
+Routine setup/recorder details are logged at Debug; replay lifecycle and real
+degradation/failure diagnostics remain visible at their existing levels. See
+[the logging follow-up](docs/LOGGING-20261018.md) for the bounded event mapping,
+offline verification and unchanged clone-logging limitation.
+
 ```
 dotnet build -c Debug
 ```
