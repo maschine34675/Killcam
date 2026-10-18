@@ -177,5 +177,4 @@ Routine technical details use Debug; replay start/end and failures remain visibl
 
 ## License
 
-This repository currently has no `LICENSE` file. A distribution license still
-needs to be selected before release; this README does not assign one.
+Released under the MIT License; see [LICENSE](LICENSE).
