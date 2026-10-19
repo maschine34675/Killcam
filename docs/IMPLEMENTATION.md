@@ -64,21 +64,18 @@ During the replay you watch yourself through the killer's eyes. Two representati
 - **Real character model** (`GhostPuppet`, default): The `BoneRecorder` records the
   complete skeleton of the local player (only the local player — which is what keeps it
   limits recording work to one skeleton, using flat preallocated arrays).
-  On replay the corpse is cloned — `Corpse.CreateCorpse` converts the real, dressed player
-  GameObject in place, so the clone wears clothing + gear. Before stripping, every renderer
-  on the clone is forced to `shadowCastingMode = On` — otherwise head/upper body stay
-  invisible, because EFT renders them on your own player in first person with
-  `ShadowCastingMode.ShadowsOnly` (the corpse conversion never resets that) and a raw clone
-  copies this state along. The obvious route via
-  `PlayerBody.UpdatePlayerRenders(ThirdPerson, ...)` — the game's own method for this — does
-  NOT work on the clone: it iterates `PlayerBody.BodySkins`, which is only populated at
-  runtime (Awake/Equip) and is empty on a clone whose Awake we deliberately never run
-  (silent no-op, no error). The direct renderer sweep bypasses that entirely. The clone is
-  instantiated under an INACTIVE holder (no Awake runs), all scripts/physics/animator are
-  stripped via `DestroyImmediate` (no Awake → no OnDestroy side effects), bones are mapped
-  by hierarchy path and overwritten per frame with the recorded poses — **no animator
-  needed**, exact playback of gait, lean and aiming. The source (corpse or live body) is
-  hidden after cloning so it does not stay visible next to the running ghost.
+  On replay `PuppetVisualHierarchy` constructs a new visual hierarchy from the dressed
+  source body. It copies transforms, static/skinned mesh renderers and native LOD groups,
+  with source-identity maps for bones, rootBone and LOD renderer references. No native
+  body/item scripts, animator, physics or serialized object are cloned or initialized;
+  the global Unity logger stays untouched. Shared meshes/materials stay owned by EFT.
+  Material property blocks, skin blendshapes, active states and appearance flags are
+  copied; first-person `ShadowsOnly` becomes `On` so the replay shows head and torso.
+  Bone paths and recorded pose playback are unchanged. The holder stays inactive until
+  assembly and the first pose finish; only then is the source hidden. Failures clean
+  owned partial objects and restore any partially hidden source. Nonnull external skin
+  bones or an unsupported meshless body use the existing silhouette fallback instead
+  of retaining native body references. See [scope, offline checks and native limits](SCRIPT-FREE-PUPPET-20261019.md).
 - **Silhouette** (`ReplayGhost`, automatic fallback): capsule body with pose-dependent
   height, head sphere, view-direction bar — in case puppet creation fails or
   `UseRealModelGhost` is off.
@@ -135,16 +132,17 @@ new CPU benchmark; the README makes no fixed frame-time or memory promise.
 - **Hidden bots are re-swept every 0.5 s** (`RefreshHidden`): reloading and weapon switching
   create NEW view objects mid-replay (magazine in the hand, round, different weapon) that
   did not exist at the initial hide and would otherwise be visible, floating freely.
-- **Logging during corpse cloning:** equipment item scripts can emit an Odin
-  NullReferenceException during raw cloning. Those components are stripped before
-  playback. The Unity logger is muted for the synchronous `Instantiate` call and
-  restored in `finally`. This also hides other Unity output inside that call;
-  absence of a message is not proof that cloning had no error.
+- **Body construction:** since the 19 October repair, the puppet is assembled from
+  transforms and visual components only. Native player/item scripts are never
+  instantiated or removed, and the Unity logger remains untouched. Unsupported
+  external skin bones or an unusable body cause the existing silhouette fallback
+  with an Error. Offline checks establish ownership and failure behavior; native
+  appearance and LOD transitions still require an in-game replay. See
+  [script-free puppet construction](SCRIPT-FREE-PUPPET-20261019.md).
 - **The "Killed in Action" panel** appears as a UI overlay on top of the replay (as with the
   KillAndDamageInfo killcam).
-- **Weapon on the puppet = pure mesh copy**: the Odin/Sirenix deserialization of the weapon
-  item throws an (internally caught) NullReferenceException on raw cloning and leaves the
-  weapon mesh empty. So the weapon is not cloned at all; its meshes are copied individually
+- **Weapon on the puppet = pure mesh copy**: the held weapon lives outside the
+  player's hierarchy. Its meshes are copied individually
   (`AttachWeaponMeshes`: new GameObjects with sharedMesh + sharedMaterials, without any
   scripts) under an independent pivot in the puppet holder. Playback sets that pivot's
   world position and rotation from the recorded weapon-root or animation track,

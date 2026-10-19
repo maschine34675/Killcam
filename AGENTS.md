@@ -45,13 +45,17 @@ Dieselben Harmony-Pitfalls wie in `D:\SPT41\Development\KillAndDamageInfo\CLAUDE
 - **Pitch-Mapping bestätigt**: `Quaternion.Euler(rotation.y, rotation.x, 0)` aus
   `Player.Rotation` (x=Yaw, y=Pitch) stimmt mit der tatsächlichen Blickrichtung überein —
   in-game getestet, kein Invert nötig.
-- **`DestroyImmediate` wirft bei blockierter `[RequireComponent]`-Abhängigkeit KEINE
-  Exception**: Unity loggt nur intern „Can't remove X because Y depends on it" und no-opt
-  still — try/catch kann das weder erkennen noch verhindern. Blockierte Versuche gar nicht
-  erst unternehmen: vor jedem Löschversuch per Reflection prüfen, ob ein Geschwister-Component
-  den Typ per `[RequireComponent]` benötigt (Basisklassen manuell walken — Unity erzwingt
-  auch geerbte Anforderungen wie `CharacterJoint`→`Joint`→`Rigidbody`, das Attribut ist aber
-  nicht als vererbt markiert). Siehe `GhostPuppet.IsRequiredBySibling`.
+- **Puppet ausschließlich aus visuellen Komponenten aufbauen**: `PuppetVisualHierarchy`
+  erzeugt eigene Transform-, MeshRenderer-/MeshFilter-, SkinnedMeshRenderer- und
+  LODGroup-Objekte. `Object.Instantiate` des nativen Körpers ist auch unter einem
+  inaktiven Parent ungeeignet: Serialisierung kann bereits dabei laufen. Keine
+  Spielskripte kopieren und anschließend entfernen, keinen globalen Unity-Logger
+  stummschalten. Skin-Knochen, rootBone, interne Probe-Anker und LOD-Renderer müssen
+  auf die eigene Hierarchie zeigen; fremde Skin-Knochen lösen den sichtbaren
+  Silhouette-Fallback aus. Shared Meshes/Materials gehören weiter EFT und werden
+  nie zerstört. Teilaufbau und teilweise versteckte Originale müssen bei Fehlern
+  aufgeräumt werden. Siehe `docs/SCRIPT-FREE-PUPPET-20261019.md` und
+  `tools/PuppetVisualChecks/Verify.ps1`; Offline-Prüfung ersetzt keinen GPU-Replay.
 - **Waffe in der Hand ≠ SlotView**: `PlayerBody.SlotViews` deckt getragene Ausrüstung ab,
   aber die Waffe in der Hand ist ein eigenes View-Objekt unter `Player.WeaponRoot.Original`
   (und empirisch kein Nachfahre von `player.gameObject`). Beim Verstecken von Spielern beides
@@ -79,5 +83,8 @@ Dieselben Harmony-Pitfalls wie in `D:\SPT41\Development\KillAndDamageInfo\CLAUDE
   solange irgendeine andere Taste gehalten wird.
   Unity disposed gestoppte Coroutinen nicht: keine `finally`-Aufräumlogik um `yield`s, stattdessen
   Deckel und Generationszähler in `RunDeathReplay`.
-- **Tools-Ordner**: `Killcam.csproj` schließt `tools\**` aus; sonst kompiliert der SDK-Glob
-  die Prüfprogramme ins Plugin.
+- **Tools/Artifacts-Ordner**: `Killcam.csproj` schließt `tools\**` und `artifacts\**`
+  aus; sonst kompiliert der SDK-Glob Prüfprogramme oder fehlerhafte Mutationstests
+  ins Plugin. `pwsh -File tools/PuppetVisualChecks/Verify.ps1` prüft den echten
+  Produktionscode gegen Verhaltens-Stand-ins, erkennt gezielte Defekte und baut
+  danach das Plugin mit dem expliziten NoDeploy-Override.

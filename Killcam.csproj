@@ -19,6 +19,9 @@
     <!-- Offline check tools are separate console projects, never part of the plugin. -->
     <Compile Remove="tools\**" />
     <None Remove="tools\**" />
+    <!-- Mutation-check evidence is ignored, never compiled into the plugin. -->
+    <Compile Remove="artifacts\**" />
+    <None Remove="artifacts\**" />
   </ItemGroup>
 
   <ItemGroup>
