@@ -107,7 +107,8 @@ definitions. `Killcam.csproj` now excludes `artifacts\**` as well as `tools\**`.
 The complete verifier and real build were rerun successfully after that fix and
 again after the final empty-property-block safeguard.
 
-Candidate (version remains 1.0.0):
+Original pre-commit candidate (version remains 1.0.0; superseded by the frozen
+native-tested build below):
 
 | Item | Value |
 | --- | --- |
@@ -131,11 +132,12 @@ Candidate (version remains 1.0.0):
    reran the complete verifier/build; updated AGENTS and implementation guidance,
    marked the 18 October mute description historical, and checked whitespace.
 
-Native acceptance must prove a non-null actual puppet, its component allowlist,
-owned skin/LOD references, recognizable dressed body/weapon, correct pose and
-LOD transitions, and restoration after skip/end/death/respawn. A quiet log or a
-silhouette is insufficient. Capture the actually loaded DLL identity and compare
-unmuted logs without attributing unrelated failures to this repair.
+Native validation must distinguish an actual puppet from the silhouette fallback
+and a quiet log. Relevant checks are the component allowlist, owned skin/LOD
+references, recognizable dressed body/weapon, recorded motion and lifecycle
+cleanup. Explicitly distinguish observed combinations from untested LOD-distance
+transitions, equipment variants or exit paths; do not infer those from offline
+construction tests.
 
 Known bounds: particles/trails/lines are intentionally not replay body geometry;
 external skin bones trigger fallback and external probe anchors are dropped.
@@ -144,4 +146,31 @@ arbitrary shear from a rotated nonuniform ancestor is not representable by one
 detached TRS root. The harness checks scaled/rotated root transforms, but cannot
 certify native mesh deformation, shader appearance, Unity LOD selection or all
 asset combinations. The held weapon's existing static-only geometry limitations
-remain. No native success is claimed in this document.
+remain. The source review above did not itself perform native testing.
+
+## Integrated native verification, 2026-10-19
+
+The parent independently reran the 14 scenarios/eight defective controls and the
+72 existing hand-off checks. Post-commit build `78e3fa3` was deliberately deployed
+only after review; its frozen DLL SHA-256 is
+`128E7C99917E7FE8F7C27FE9A22D73835857B3569088C532969D56A29CF2D300`, MVID
+`6e37e296-46d6-4558-8dc8-241a5bdf46a5`. GPU2 process `b734328f` loaded this exact
+DLL alongside Arena diagnostic repair `61a8c9a` and unchanged Redeploy Core.
+
+Five genuine Deathmatch deaths exercised model replays and subsequent respawns.
+The first actual puppet contained 362 components, all in the visual allowlist;
+sampled skin/root bones belonged to the puppet. Separate samples show recorded
+body/weapon movement. A late frame of the fifth replay visibly shows the dressed
+body, head/helmet and held rifle. Earlier cameras were obscured/off-axis; those
+views did not certify appearance. After playback the puppet was absent and the
+respawned player fired successfully. A separate two-round PFT Tactical run
+completed its follower rebind and an actual second-round death replay.
+
+This is bounded native acceptance, not a certification of every LOD transition,
+outfit, shader or exit branch. Full log attribution, loaded module identities,
+settings/profile restoration and original-versus-restored distinctions live in
+the sibling ArenaMode repository's `docs/GPU-MODEL-FIXES-20261019.md`. Its
+`docs/GPU-MODEL-CONTROLS-20261019.md` separately documents preview errors that
+also reproduce with Killcam, Arena client and standalone Redeploy disabled.
+Neither result supports claiming all historical native animation/asset errors
+fixed by this change.
