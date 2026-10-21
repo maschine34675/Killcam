@@ -35,6 +35,11 @@ try {
             -or $metadata[0].ConstructorArguments[1].Value -ne 'maschine-Killcam') { throw 'Wrong plugin identity.' }
         $version = $metadata[0].ConstructorArguments[2].Value
         if ($assembly.Name.Version -ne [version]($version + '.0')) { throw 'Plugin and assembly versions differ.' }
+        $fileVersion = @($assembly.CustomAttributes | Where-Object { $_.AttributeType.Name -eq 'AssemblyFileVersionAttribute' })[0].ConstructorArguments[0].Value
+        $infoVersion = @($assembly.CustomAttributes | Where-Object { $_.AttributeType.Name -eq 'AssemblyInformationalVersionAttribute' })[0].ConstructorArguments[0].Value
+        if ([version]$fileVersion -ne [version]($version + '.0') -or $infoVersion.Split('+')[0] -ne $version) {
+            throw 'Plugin, file and informational versions differ.'
+        }
         if (-not $assembly.MainModule.GetType('Killcam.Replay.ReplayController')) { throw 'Missing renamed replay API.' }
         if (@($assembly.MainModule.GetTypes() | Where-Object FullName -Like 'KillcamReplay*').Count) { throw 'Old runtime types remain.' }
         if (@($plugin.CustomAttributes | Where-Object { $_.AttributeType.FullName -eq 'BepInEx.BepInIncompatibility' }).Count -ne 1) {
