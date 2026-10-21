@@ -23,7 +23,8 @@ für Installation, Einstellungen und Einschränkungen; Architektur und
 Aufzeichnungsaufwand stehen in docs/IMPLEMENTATION.md.
 
 - `src/Recording/SnapshotRecorder.cs` — Ringpuffer-Aufzeichnung (20 Hz, allokationsfrei im Hot Path)
-- `src/Replay/ReplayController.cs` — Playback in LateUpdate, Kamera-Pose in onBeforeRender, IMGUI-Overlay + F9-Debug-Replay
+- `src/Replay/ReplayController.cs` — Playback in LateUpdate, Kamera-Pose in onBeforeRender, IMGUI-Overlay + optionaler Debug-Hotkey (unbelegt, Advanced)
+- `src/Plugin.Configuration.cs` — stabile Config-Schlüssel mit lesbaren F12-Tags; `DebugReplayHotkey` ersetzt seit 1.0.1 den alten `ReplayKey`, ohne dessen Belegung zu übernehmen
 - `src/Patches/ReplayPatches.cs` — Raid-Start (vmethod_0), OnMakingShot, OnDead, DeferStop, PerfectCulling-Fix
 
 ## Wichtige Muster

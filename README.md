@@ -62,9 +62,12 @@ killer live. **Space** skips playback. The default recorded window is **10
 seconds**; slow motion, transitions and the live tail make a full 10-second
 recording take longer than 10 seconds to play back.
 
-**F9** plays a debug replay of the nearest recorded bot while you are alive.
-The live tail is omitted for this debug replay. Change or unbind the key if it
-conflicts with another mod. There is no saved video file or replay browser.
+The optional **Debug replay shortcut** plays the nearest recorded bot while you
+are alive, without the live tail. It is **unbound by default**. To assign a key,
+enable **Advanced settings** in F12 and open Killcam's Debug section. Version
+1.0.1 replaces the old `Debug / ReplayKey` with `Debug / DebugReplayHotkey`, so
+previous F9 or custom debug bindings are intentionally cleared. Once you bind
+the new option, that choice is retained. There is no saved video file or replay browser.
 
 The replay needs a valid killer and at least two recorded samples. Deaths
 without a usable attacker, or with no/too little recorded history, may have no
@@ -73,8 +76,10 @@ replay. This is not a reconstruction of every possible death cause.
 ## Configuration
 
 Edit `BepInEx/config/com.maschine.Killcam.cfg`, or use **F12** if the BepInEx
-ConfigurationManager is installed. Defaults below apply to a new config;
-updating preserves existing values. Recording rate and buffer size are read at
+ConfigurationManager is installed. F12 uses readable labels and a fixed order;
+the table lists the stored keys. Defaults below apply to a new config; updating
+preserves existing values except for the old debug shortcut described above.
+Recording rate and buffer size are read at
 raid start, so choose those before entering a raid.
 
 | Section / option | Default | Meaning |
@@ -96,10 +101,12 @@ raid start, so choose those before entering a raid.
 | `Replay / HudTopFraction` | 0.87 | HUD position measured from the top, 0–0.9 of screen height. |
 | `Replay / WaitForReplayBeforeRespawn` | true | Hold a compatible Core respawn until replay handoff; Arena uses its own timing. |
 | `Replay / SkipKey` | Space | Skip playback, then release the waiting respawn or raid end. |
-| `Debug / ReplayKey` | F9 | Replay the nearest bot without dying. |
+| `Debug / DebugReplayHotkey` | Unbound | Advanced: replay the nearest bot without dying. |
 
 The old `ShowMuzzleFlashes` entry may remain in migrated configs but is not an
 active setting. `ShowShotLines` controls the recorded shot lines and muzzle lights.
+The old `Debug / ReplayKey` may also remain as unused text, but is never read or
+shown as an active option.
 
 ## Limitations and troubleshooting
 
@@ -152,10 +159,16 @@ Offline checks (no deployment):
 
 ```powershell
 pwsh -NoProfile -File tools/RenameChecks/Verify.ps1
+dotnet run --project tools/ConfigChecks -c Release
 dotnet run --project tools/HandoffChecks -c Release
 ```
 
 The rename checks need the SPT installation (`-SptPath` can override its default).
+The config checks run the production bindings with the installed BepInEx and
+ConfigurationManager libraries: fresh installs, old-key reset, preserved
+preferences, explicit new bindings and readable/advanced menu metadata. They
+write only temporary fixture configs; use `-p:SptPath=<path>` to override the
+installation root.
 The handoff checks also inspect a built Redeploy.Core library beside the repo
 or in the installation. Missing prerequisites produce `HANDOFF_CHECKS_PARTIAL`
 and exit 3, not a full pass. Offline checks are separate from in-game acceptance.

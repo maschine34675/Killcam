@@ -41,8 +41,10 @@ try {
             throw 'Missing duplicate replay-plugin protection.'
         }
         $calls = (@($plugin.Methods | Where-Object Name -eq 'Awake')[0].Body.Instructions | ForEach-Object { [string]$_.Operand }) -join "`n"
+        $bindCalls = (@($plugin.Methods | Where-Object Name -eq 'BindSettings')[0].Body.Instructions | ForEach-Object { [string]$_.Operand }) -join "`n"
         if ($calls.IndexOf('ConfigMigration::CopyLegacyIfMissing') -lt 0 -or
-            $calls.IndexOf('ConfigMigration::CopyLegacyIfMissing') -ge $calls.IndexOf('BepInEx.Configuration.ConfigFile::Bind')) {
+            $calls.IndexOf('ConfigMigration::CopyLegacyIfMissing') -ge $calls.IndexOf('Killcam.Plugin::BindSettings') -or
+            -not $bindCalls.Contains('BepInEx.Configuration.ConfigFile::Bind')) {
             throw 'Config migration no longer precedes Bind.'
         }
     } finally { $assembly.Dispose() }

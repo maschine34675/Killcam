@@ -74,7 +74,7 @@ public class ReplayController : MonoBehaviour
     private string _killerName;
     private Camera _camera;
     // The body this playback shows as the victim: the dead local player of a death
-    // replay, the living one of the F9 replay. Its replacement ends the playback.
+    // replay, the living one of the debug replay. Its replacement ends the playback.
     private Player _victimBody;
     private GUIStyle _labelStyle;
     private GUIStyle _shotStyle;
@@ -746,7 +746,7 @@ public class ReplayController : MonoBehaviour
         var shots = track.ExtractShots(from, now);
 
         // The main player's own recent path doubles as the ghost — walk up to a bot,
-        // press F9 and watch yourself through its eyes. The live body is the puppet
+        // use the configured debug shortcut and watch yourself through its eyes. The live body is the puppet
         // source here (no corpse exists); its own head stays hidden (FPS mode).
         Snapshot[] victimPath = null;
         List<float> victimShots = null;

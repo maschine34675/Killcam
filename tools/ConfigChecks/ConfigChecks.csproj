@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <SptPath Condition="'$(SptPath)' == ''">$(MSBuildThisFileDirectory)..\..\..\..</SptPath>
+  </PropertyGroup>
+  <!-- Actual bindings + installed configuration libraries; no EFT launch or deployment. -->
+  <ItemGroup>
+    <Compile Include="../../src/Plugin.Configuration.cs" Link="Plugin.Configuration.cs" />
+    <Compile Include="../../src/ConfigMigration.cs" Link="ConfigMigration.cs" />
+    <Reference Include="BepInEx" HintPath="$(SptPath)/BepInEx/core/BepInEx.dll" />
+    <Reference Include="UnityEngine" HintPath="$(SptPath)/EscapeFromTarkov_Data/Managed/UnityEngine.dll" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(SptPath)/EscapeFromTarkov_Data/Managed/UnityEngine.CoreModule.dll" />
+    <Reference Include="ConfigurationManager" HintPath="$(SptPath)/BepInEx/plugins/spt/ConfigurationManager/ConfigurationManager.dll" />
+  </ItemGroup>
+</Project>

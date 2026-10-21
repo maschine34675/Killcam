@@ -8,7 +8,7 @@ namespace Killcam.Replay;
 // Hides the renderers AND light sources of all live players/bots during playback
 // so present-time actors don't walk through a scene that shows the past. Purely
 // visual: only Renderer.enabled/Light.enabled are toggled, AI and game logic keep
-// running. The local player is never hidden (dead → not in the list anyway; F9 →
+// running. The local player is never hidden (dead → not in the list anyway; debug replay →
 // own live body marks the path end, like the corpse does in a death replay).
 // Hidden state is tracked per player so the cut to the live tail can restore
 // everyone EXCEPT the killer (whose eyes the camera then follows).
