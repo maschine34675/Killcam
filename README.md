@@ -6,6 +6,8 @@ or a compatible mod's respawn takes over.
 
 Current version: **1.0.1**, formerly **KillcamReplay**.
 
+See the [changelog](docs/CHANGELOG.md) for changes since 1.0.0.
+
 ## Features
 
 - Recorded camera movement and aim, with a configurable replay window.
